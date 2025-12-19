@@ -32,6 +32,10 @@ const PORT = process.env.PORT || 5000;
 // MIDDLEWARE
 // ============================================
 
+// Trust proxy - CRITICAL for Render deployment
+// Render uses proxies, so we need to trust the X-Forwarded-* headers
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet());
 
@@ -52,11 +56,13 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('combined'));
 }
 
-// Rate limiting
+// Rate limiting - configured for proxy environments
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // 100 requests per window
-  message: 'Too many requests from this IP, please try again later.'
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 app.use('/api/', limiter);
@@ -106,8 +112,8 @@ app.use('/api/watchlist', authenticate, watchlistRoutes);
 app.use('/api/lists', authenticate, listsRoutes);
 app.use('/api/stats', authenticate, statsRoutes);
 app.use('/api/social', authenticate, socialRoutes);
-app.use('/api/media', authenticate, mediaRoutes);
-app.use('/api/discover', authenticate, discoverRoutes);
+app.use('/api/media', mediaRoutes); // Public - no auth required
+app.use('/api/discover', discoverRoutes); // Public - no auth required
 app.use('/api/bug-reports', bugReportRoutes);
 
 // 404 handler

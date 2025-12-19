@@ -24,6 +24,7 @@ export default function HomeScreen({ navigation }) {
   const [popularTV, setPopularTV] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
   const { items, fetchWatchlist } = useWatchlistStore();
 
@@ -37,14 +38,18 @@ export default function HomeScreen({ navigation }) {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      console.log('🔄 Loading home screen data...');
       await Promise.all([
         fetchTrending(),
         fetchPopular(),
         fetchPopularTV(),
         fetchWatchlist(),
       ]);
+      console.log('✅ Home screen data loaded successfully');
     } catch (error) {
-      console.error('Failed to load home data:', error);
+      console.error('❌ Failed to load home data:', error);
+      setError(error.userMessage || 'Failed to load content. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -52,28 +57,79 @@ export default function HomeScreen({ navigation }) {
 
   const fetchTrending = async () => {
     try {
+      console.log('🔍 Fetching trending media...');
       const response = await api.get('/media/trending?mediaType=all&timeWindow=week');
-      setTrending(response.data.data.results || []);
+      console.log('📦 Trending response:', {
+        success: response.data?.success,
+        hasData: !!response.data?.data,
+        resultsCount: response.data?.data?.results?.length || 0
+      });
+      
+      const results = response.data?.data?.results || [];
+      console.log(`✅ Trending: ${results.length} items`);
+      setTrending(results);
     } catch (error) {
-      console.error('Failed to fetch trending:', error);
+      console.error('❌ Failed to fetch trending:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        isNetworkError: error.isNetworkError,
+        userMessage: error.userMessage
+      });
+      setTrending([]);
     }
   };
 
   const fetchPopular = async () => {
     try {
+      console.log('🔍 Fetching popular movies...');
       const response = await api.get('/media/trending?mediaType=movie&timeWindow=week');
-      setPopular(response.data.data.results || []);
+      console.log('📦 Popular movies response:', {
+        success: response.data?.success,
+        hasData: !!response.data?.data,
+        resultsCount: response.data?.data?.results?.length || 0
+      });
+      
+      const results = response.data?.data?.results || [];
+      console.log(`✅ Popular movies: ${results.length} items`);
+      setPopular(results);
     } catch (error) {
-      console.error('Failed to fetch popular:', error);
+      console.error('❌ Failed to fetch popular movies:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        isNetworkError: error.isNetworkError,
+        userMessage: error.userMessage
+      });
+      setPopular([]);
     }
   };
   
   const fetchPopularTV = async () => {
     try {
+      console.log('🔍 Fetching popular TV shows...');
       const response = await api.get('/media/trending?mediaType=tv&timeWindow=week');
-      setPopularTV(response.data.data.results || []);
+      console.log('📦 Popular TV response:', {
+        success: response.data?.success,
+        hasData: !!response.data?.data,
+        resultsCount: response.data?.data?.results?.length || 0
+      });
+      
+      const results = response.data?.data?.results || [];
+      console.log(`✅ Popular TV: ${results.length} items`);
+      setPopularTV(results);
     } catch (error) {
-      console.error('Failed to fetch popular TV:', error);
+      console.error('❌ Failed to fetch popular TV:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        isNetworkError: error.isNetworkError,
+        userMessage: error.userMessage
+      });
+      setPopularTV([]);
     }
   };
 
@@ -183,6 +239,43 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
+  // Show error banner if there's an error
+  const renderErrorBanner = () => {
+    if (!error) return null;
+    
+    return (
+      <View style={styles.errorBanner}>
+        <Ionicons name="warning" size={24} color="#ff6b6b" />
+        <View style={styles.errorTextContainer}>
+          <Text style={styles.errorTitle}>Connection Error</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <Text style={styles.errorHint}>
+            API: {__DEV__ ? 'Development' : 'Production'} mode
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  // Show empty state if no content loaded
+  const renderEmptyState = () => {
+    if (trending.length > 0 || popular.length > 0 || popularTV.length > 0) return null;
+    
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name="film-outline" size={64} color={colors.textSecondary} />
+        <Text style={styles.emptyTitle}>No Content Available</Text>
+        <Text style={styles.emptyMessage}>
+          Unable to load movies and TV shows.{'\n'}
+          Please check your internet connection.
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -196,6 +289,12 @@ export default function HomeScreen({ navigation }) {
         />
       }
     >
+      {/* Error Banner */}
+      {renderErrorBanner()}
+
+      {/* Empty State */}
+      {renderEmptyState()}
+
       {/* Hero Carousel */}
       <HeroCarousel items={trending && Array.isArray(trending) ? trending.slice(0, 5) : []} />
 
@@ -282,6 +381,69 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   genreText: {
+    fontSize: typography.body,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
+  },
+  errorBanner: {
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff6b6b',
+    padding: spacing.lg,
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  errorTextContainer: {
+    flex: 1,
+  },
+  errorTitle: {
+    fontSize: typography.h4,
+    fontWeight: typography.bold,
+    color: '#ff6b6b',
+    marginBottom: spacing.xs,
+  },
+  errorMessage: {
+    fontSize: typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  errorHint: {
+    fontSize: typography.small,
+    color: colors.textTertiary,
+    fontStyle: 'italic',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.massive,
+    paddingHorizontal: spacing.xl,
+  },
+  emptyTitle: {
+    fontSize: typography.h2,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  emptyMessage: {
+    fontSize: typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+    lineHeight: 24,
+  },
+  retryButton: {
+    backgroundColor: colors.purple,
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.md,
+    borderRadius: 24,
+  },
+  retryButtonText: {
     fontSize: typography.body,
     fontWeight: typography.bold,
     color: colors.textPrimary,

@@ -1,16 +1,13 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-import useAuthStore from './src/store/authStore';
 import { colors } from './src/constants/theme';
 
 // Screens
-import LoginScreen from './src/screens/auth/LoginScreen';
-import RegisterScreen from './src/screens/auth/RegisterScreen';
 import HomeScreen from './src/screens/home/HomeScreen';
 import WatchlistScreen from './src/screens/watchlist/WatchlistScreen';
 import DiscoverScreen from './src/screens/discover/DiscoverScreen';
@@ -73,15 +70,6 @@ function TabNavigator() {
 }
 
 export default function App() {
-  const { user, token, getMe } = useAuthStore();
-
-  useEffect(() => {
-    // Check if user is logged in and fetch user data
-    if (token && !user) {
-      getMe();
-    }
-  }, [token]);
-
   return (
     <NavigationContainer>
       <StatusBar style="light" />
@@ -96,55 +84,36 @@ export default function App() {
           },
         }}
       >
-        {user ? (
-          // Logged in screens
-          <>
-            <Stack.Screen 
-              name="Main" 
-              component={TabNavigator}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="MediaDetail" 
-              component={MediaDetailScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="EditProfile" 
-              component={EditProfileScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="Notifications" 
-              component={NotificationsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="Appearance" 
-              component={AppearanceScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="Help" 
-              component={HelpScreen}
-              options={{ headerShown: false }}
-            />
-          </>
-        ) : (
-          // Auth screens
-          <>
-            <Stack.Screen 
-              name="Login" 
-              component={LoginScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="Register" 
-              component={RegisterScreen}
-              options={{ title: 'Create Account' }}
-            />
-          </>
-        )}
+        <Stack.Screen 
+          name="Main" 
+          component={TabNavigator}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="MediaDetail" 
+          component={MediaDetailScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="EditProfile" 
+          component={EditProfileScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="Notifications" 
+          component={NotificationsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="Appearance" 
+          component={AppearanceScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="Help" 
+          component={HelpScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
