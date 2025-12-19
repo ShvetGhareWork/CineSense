@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   headerTitle: {
-    fontSize: typography.h3,
+    fontSize: typography.h3.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
   },
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   sectionTitle: {
-    fontSize: typography.h4,
+    fontSize: typography.h4.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginBottom: spacing.lg,
@@ -154,13 +154,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingText: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   settingDescription: {
-    fontSize: typography.caption,
+    fontSize: typography.caption.fontSize,
     color: colors.textSecondary,
   },
   toggle: {
@@ -188,3 +188,4 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
 });
+

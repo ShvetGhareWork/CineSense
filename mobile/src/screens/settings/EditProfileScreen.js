@@ -122,12 +122,12 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   headerTitle: {
-    fontSize: typography.h3,
+    fontSize: typography.h3.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
   },
   saveText: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.bold,
     color: colors.purple,
   },
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   changePhotoText: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.purple,
   },
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   label: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
@@ -202,15 +202,16 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     color: colors.textPrimary,
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
   },
   inputTextDisabled: {
     color: colors.textTertiary,
   },
   helperText: {
-    fontSize: typography.caption,
+    fontSize: typography.caption.fontSize,
     color: colors.textTertiary,
     marginTop: spacing.xs,
     marginLeft: spacing.sm,
   },
 });
+

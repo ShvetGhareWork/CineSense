@@ -84,30 +84,141 @@ export const gradients = {
 };
 
 export const typography = {
+  // Font Families
+  fonts: {
+    primary: {
+      regular: 'PlusJakartaSans_400Regular',
+      medium: 'PlusJakartaSans_500Medium',
+      semibold: 'PlusJakartaSans_600SemiBold',
+      bold: 'PlusJakartaSans_700Bold',
+      extraBold: 'PlusJakartaSans_800ExtraBold',
+    },
+    secondary: {
+      regular: 'Inter_400Regular',
+      medium: 'Inter_500Medium',
+      semibold: 'Inter_600SemiBold',
+      bold: 'Inter_700Bold',
+    },
+  },
+
   // Font Sizes
-  hero: 32,
-  h1: 28,
-  h2: 24,
-  h3: 20,
-  h4: 18,
-  h5: 16,
-  body: 14,
-  caption: 12,
-  small: 11,
-  tiny: 9,
-  
-  // Font Weights
-  regular: '400',
-  medium: '500',
-  semibold: '600',
-  bold: '700',
-  black: '900',
+  sizes: {
+    hero: 34,
+    h1: 24,
+    h2: 20,
+    h3: 18,
+    h4: 16,
+    bodyLarge: 16,
+    body: 14,
+    metadata: 12,
+    caption: 11,
+    tiny: 10,
+  },
   
   // Line Heights
-  lineHeight: {
-    tight: 1.2,
-    normal: 1.5,
-    relaxed: 1.75,
+  lineHeights: {
+    hero: 40,
+    h1: 30,
+    h2: 26,
+    h3: 24,
+    h4: 22,
+    body: 20,
+    caption: 16,
+    tiny: 14,
+  },
+
+  // Letter Spacing
+  letterSpacing: {
+    tight: -0.5,
+    normal: 0,
+    wide: 0.5,
+    extraWide: 1,
+  },
+
+  // Presets / Variants (Using System Fonts)
+  hero: {
+    fontSize: 34,
+    fontWeight: '700',
+    lineHeight: 40,
+    letterSpacing: -0.5,
+    color: '#F8F9FA',
+  },
+  h1: {
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
+    letterSpacing: 0.5,
+    color: '#F8F9FA',
+  },
+  h2: {
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 26,
+    letterSpacing: 0,
+    color: '#F8F9FA',
+  },
+  h3: {
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 24,
+    letterSpacing: 0,
+    color: '#F8F9FA',
+  },
+  h4: {
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+    letterSpacing: 0,
+    color: '#F8F9FA',
+  },
+  h5: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    letterSpacing: 0,
+    color: '#F8F9FA',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 20,
+    letterSpacing: 0,
+    color: '#F8F9FA',
+  },
+  body: {
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
+    letterSpacing: 0,
+    color: '#CED4DA',
+  },
+  small: {
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 16,
+    letterSpacing: 0,
+    color: '#ADB5BD',
+  },
+  metadata: {
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 16,
+    letterSpacing: 0.2,
+    color: '#ADB5BD',
+  },
+  caption: {
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 14,
+    letterSpacing: 0.5,
+    color: '#6C757D',
+  },
+  tiny: {
+    fontSize: 10,
+    fontWeight: '600',
+    lineHeight: 12,
+    letterSpacing: 0.5,
+    color: '#6C757D',
   },
 };
 

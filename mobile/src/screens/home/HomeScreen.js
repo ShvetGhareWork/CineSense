@@ -4,19 +4,22 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
+import Animated, { FadeIn, Layout } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 import HeroCarousel from '../../components/home/HeroCarousel';
 import ContinueWatchingSection from '../../components/home/ContinueWatchingSection';
 import MediaCard from '../../components/media/MediaCard';
+import { SkeletonCard } from '../../components/common/SkeletonLoader';
 import useWatchlistStore from '../../store/watchlistStore';
 import api from '../../api/client';
 import { colors, gradients, typography, spacing } from '../../constants/theme';
+import AppText from '../../components/common/AppText';
 
 export default function HomeScreen({ navigation }) {
   const [trending, setTrending] = useState([]);
@@ -140,17 +143,17 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   const renderHorizontalList = (data, title, icon) => {
-    if (!data || !Array.isArray(data) || data.length === 0) return null;
-
+    const isLoading = loading && (!data || data.length === 0);
+    
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderLeft}>
-            <Ionicons name={icon} size={24} color={colors.purple} />
-            <Text style={styles.sectionTitle}>{title}</Text>
+            <Ionicons name={icon} size={28} color={colors.cyan} />
+            <AppText variant="h2" style={styles.sectionTitle}>{title}</AppText>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Discover')}>
-            <Text style={styles.seeAllText}>See All</Text>
+            <AppText variant="body" style={styles.seeAllText}>See All</AppText>
           </TouchableOpacity>
         </View>
 
@@ -161,23 +164,37 @@ export default function HomeScreen({ navigation }) {
           decelerationRate="fast"
           snapToInterval={170}
         >
-          {data.slice(0, 10).map((item) => (
-            <MediaCard
-              key={item.id}
-              media={{
-                ...item,
-                tmdbId: item.id?.toString(),
-                type: item.media_type || 'movie',
-                title: item.title || item.name,
-                posterPath: item.poster_path,
-                voteAverage: item.vote_average,
-              }}
-              showStatus={false}
-              showRating={true}
-              width={150}
-              height={225}
-            />
-          ))}
+          {isLoading ? (
+            // Show skeleton loaders while loading
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : (
+            data.slice(0, 10).map((item, index) => (
+              <Animated.View
+                key={item.id}
+                entering={FadeIn.duration(300).delay(index * 50)}
+                layout={Layout.springify().damping(15)}
+              >
+                <MediaCard
+                  media={{
+                    ...item,
+                    tmdbId: item.id?.toString(),
+                    type: item.media_type || 'movie',
+                    title: item.title || item.name,
+                    posterPath: item.poster_path,
+                    voteAverage: item.vote_average,
+                  }}
+                  showStatus={false}
+                  showRating={true}
+                  width={150}
+                  height={225}
+                />
+              </Animated.View>
+            ))
+          )}
         </ScrollView>
       </View>
     );
@@ -197,8 +214,8 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderLeft}>
-            <Ionicons name="grid" size={24} color={colors.cyan} />
-            <Text style={styles.sectionTitle}>Browse by Genre</Text>
+            <Ionicons name="grid" size={28} color={colors.cyan} />
+            <AppText variant="h2" style={styles.sectionTitle}>Browse by Genre</AppText>
           </View>
         </View>
 
@@ -221,7 +238,7 @@ export default function HomeScreen({ navigation }) {
                 end={{ x: 1, y: 0 }}
               >
                 <Ionicons name={genre.icon} size={20} color="#fff" />
-                <Text style={styles.genreText}>{genre.name}</Text>
+                <AppText variant="cardTitle" style={styles.genreText}>{genre.name}</AppText>
               </LinearGradient>
             </TouchableOpacity>
           ))}
@@ -234,7 +251,7 @@ export default function HomeScreen({ navigation }) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.purple} />
-        <Text style={styles.loadingText}>Loading...</Text>
+        <AppText variant="body" style={styles.loadingText}>Loading...</AppText>
       </View>
     );
   }
@@ -247,11 +264,11 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.errorBanner}>
         <Ionicons name="warning" size={24} color="#ff6b6b" />
         <View style={styles.errorTextContainer}>
-          <Text style={styles.errorTitle}>Connection Error</Text>
-          <Text style={styles.errorMessage}>{error}</Text>
-          <Text style={styles.errorHint}>
+          <AppText variant="h3" style={styles.errorTitle}>Connection Error</AppText>
+          <AppText variant="body" style={styles.errorMessage}>{error}</AppText>
+          <AppText variant="caption" style={styles.errorHint}>
             API: {__DEV__ ? 'Development' : 'Production'} mode
-          </Text>
+          </AppText>
         </View>
       </View>
     );
@@ -264,13 +281,13 @@ export default function HomeScreen({ navigation }) {
     return (
       <View style={styles.emptyState}>
         <Ionicons name="film-outline" size={64} color={colors.textSecondary} />
-        <Text style={styles.emptyTitle}>No Content Available</Text>
-        <Text style={styles.emptyMessage}>
+        <AppText variant="h2" style={styles.emptyTitle}>No Content Available</AppText>
+        <AppText variant="body" style={styles.emptyMessage}>
           Unable to load movies and TV shows.{'\n'}
           Please check your internet connection.
-        </Text>
+        </AppText>
         <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
-          <Text style={styles.retryButtonText}>Retry</Text>
+          <AppText variant="cardTitle" style={styles.retryButtonText}>Retry</AppText>
         </TouchableOpacity>
       </View>
     );
@@ -334,33 +351,30 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: spacing.md,
-    fontSize: typography.body,
     color: colors.textSecondary,
   },
   section: {
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.xxxl + spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
   sectionHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   sectionTitle: {
-    fontSize: typography.h3,
-    fontWeight: typography.bold,
     color: colors.textPrimary,
+    fontWeight: '700',
   },
   seeAllText: {
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
     color: colors.purple,
+    fontWeight: '600',
   },
   horizontalList: {
     paddingHorizontal: spacing.xl,
@@ -370,20 +384,24 @@ const styles = StyleSheet.create({
   },
   genreChip: {
     marginRight: spacing.md,
-    borderRadius: 24,
+    borderRadius: 28,
     overflow: 'hidden',
+    shadowColor: colors.cyan,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   genreGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
   },
   genreText: {
-    fontSize: typography.body,
-    fontWeight: typography.bold,
     color: colors.textPrimary,
+    fontWeight: '600',
   },
   errorBanner: {
     backgroundColor: 'rgba(255, 107, 107, 0.1)',
@@ -402,18 +420,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   errorTitle: {
-    fontSize: typography.h4,
-    fontWeight: typography.bold,
     color: '#ff6b6b',
     marginBottom: spacing.xs,
   },
   errorMessage: {
-    fontSize: typography.body,
     color: colors.textSecondary,
     marginBottom: spacing.xs,
   },
   errorHint: {
-    fontSize: typography.small,
     color: colors.textTertiary,
     fontStyle: 'italic',
   },
@@ -424,18 +438,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   emptyTitle: {
-    fontSize: typography.h2,
-    fontWeight: typography.bold,
     color: colors.textPrimary,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   emptyMessage: {
-    fontSize: typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.xl,
-    lineHeight: 24,
   },
   retryButton: {
     backgroundColor: colors.purple,
@@ -444,8 +454,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   retryButtonText: {
-    fontSize: typography.body,
-    fontWeight: typography.bold,
     color: colors.textPrimary,
   },
 });
+

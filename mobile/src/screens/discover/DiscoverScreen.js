@@ -11,6 +11,18 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
+import Animated, {
+  FadeInUp,
+  SlideInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  withTiming,
+  interpolate,
+  Layout,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +30,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MediaCard from '../../components/media/MediaCard';
 import api from '../../api/client';
 import { colors, gradients, typography, spacing, borderRadius } from '../../constants/theme';
+import AppText from '../../components/common/AppText';
 
 const GENRES = [
   { id: 28, name: 'Action' },
@@ -54,35 +67,63 @@ const DiscoverHeader = React.memo(({
   mediaType, 
   setMediaType 
 }) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const searchWidth = useSharedValue(0);
+  const searchBgOpacity = useSharedValue(0.8);
+
+  const searchAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(searchWidth.value, [0, 1], [1, 1.02]) }],
+  }));
+
+  const searchBlurStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(searchBgOpacity.value, [0.8, 1], [0.8, 1]),
+  }));
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    searchWidth.value = withSpring(1, { damping: 15 });
+    searchBgOpacity.value = withSpring(1, { damping: 15 });
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    searchWidth.value = withSpring(0, { damping: 15 });
+    searchBgOpacity.value = withSpring(0.8, { damping: 15 });
+  };
+
   return (
     <View style={styles.header}>
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <BlurView intensity={80} tint="dark" style={styles.searchBlur}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color={colors.textSecondary} />
-            <TextInput
-              key="search-input-field"
-              style={styles.searchInput}
-              placeholder="Search movies & TV shows..."
-              placeholderTextColor={colors.textSecondary}
-              value={localQuery}
-              onChangeText={setLocalQuery}
-              onSubmitEditing={handleSearchTrigger}
-              returnKeyType="search"
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
-            {localQuery.length > 0 && (
-              <TouchableOpacity onPress={() => {
-                setLocalQuery('');
-                setSearchQuery('');
-              }}>
-                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </BlurView>
+        <Animated.View style={searchAnimatedStyle}>
+          <BlurView intensity={80} tint="dark" style={styles.searchBlur}>
+            <Animated.View style={[styles.searchBar, searchBlurStyle]}>
+              <Ionicons name="search" size={20} color={colors.textSecondary} />
+              <TextInput
+                key="search-input-field"
+                style={styles.searchInput}
+                placeholder="Search movies & TV shows..."
+                placeholderTextColor={colors.textSecondary}
+                value={localQuery}
+                onChangeText={setLocalQuery}
+                onSubmitEditing={handleSearchTrigger}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                returnKeyType="search"
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              {localQuery.length > 0 && (
+                <TouchableOpacity onPress={() => {
+                  setLocalQuery('');
+                  setSearchQuery('');
+                }}>
+                  <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </Animated.View>
+          </BlurView>
+        </Animated.View>
       </View>
 
       {/* Filter Chips */}
@@ -94,10 +135,10 @@ const DiscoverHeader = React.memo(({
               style={styles.filterButtonGradient}
             >
               <Ionicons name="options" size={18} color="#fff" />
-              <Text style={styles.filterButtonText}>Filters</Text>
+              <AppText variant="body" style={styles.filterButtonText}>Filters</AppText>
               {selectedGenres.length > 0 && (
                 <View style={styles.filterBadge}>
-                  <Text style={styles.filterBadgeText}>{selectedGenres.length}</Text>
+                  <AppText variant="tiny" style={styles.filterBadgeText}>{selectedGenres.length}</AppText>
                 </View>
               )}
             </LinearGradient>
@@ -108,12 +149,18 @@ const DiscoverHeader = React.memo(({
             {['all', 'movie', 'tv'].map((type) => (
               <TouchableOpacity
                 key={type}
-                style={[styles.mediaTypeButton, mediaType === type && styles.mediaTypeButtonActive]}
+                style={[
+                  styles.mediaTypeButton,
+                  mediaType === type && styles.mediaTypeButtonActive
+                ]}
                 onPress={() => setMediaType(type)}
               >
-                <Text style={[styles.mediaTypeText, mediaType === type && styles.mediaTypeTextActive]}>
+                <AppText variant="body" style={[
+                  styles.mediaTypeText,
+                  mediaType === type && styles.mediaTypeTextActive
+                ]}>
                   {type === 'all' ? 'All' : type === 'movie' ? 'Movies' : 'TV Shows'}
-                </Text>
+                </AppText>
               </TouchableOpacity>
             ))}
           </View>
@@ -122,6 +169,127 @@ const DiscoverHeader = React.memo(({
     </View>
   );
 });
+
+// Animated Genre Chip Component
+const GenreChip = ({ genre, isSelected, onPress }) => {
+  const scale = useSharedValue(1);
+
+  const handlePress = () => {
+    scale.value = withSequence(
+      withSpring(1.1, { damping: 12 }),
+      withSpring(1, { damping: 12 })
+    );
+    onPress();
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <TouchableOpacity
+        style={[
+          styles.genreChip,
+          isSelected && styles.genreChipActive
+        ]}
+        onPress={handlePress}
+      >
+        <AppText variant="body" style={[
+          styles.genreChipText,
+          isSelected && styles.genreChipTextActive
+        ]}>
+          {genre.name}
+        </AppText>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+// Custom Filter Modal Content Component
+const FilterModalContent = ({
+  isVisible,
+  closeFilters,
+  clearFilters,
+  selectedGenres,
+  toggleGenre,
+  selectedSort,
+  setSelectedSort,
+}) => {
+  if (!isVisible) return null;
+
+  return (
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={closeFilters}
+    >
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          onPress={closeFilters}
+          activeOpacity={1}
+        />
+        <View style={styles.modalContent}>
+          <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+            <View style={styles.modalHeader}>
+              <AppText variant="h2" style={styles.modalTitle}>Filters</AppText>
+              <View style={styles.modalHeaderActions}>
+                <TouchableOpacity onPress={clearFilters} style={styles.clearButton}>
+                  <AppText variant="body" style={styles.clearText}>Clear All</AppText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={closeFilters} style={styles.closeButton}>
+                  <Ionicons name="close" size={28} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Genres */}
+            <View style={styles.filterSection}>
+              <AppText variant="h4" style={styles.filterSectionTitle}>Genres</AppText>
+              <View style={styles.genreGrid}>
+                {GENRES.map((genre) => (
+                  <GenreChip
+                    key={genre.id}
+                    genre={genre}
+                    isSelected={selectedGenres.includes(genre.id)}
+                    onPress={() => toggleGenre(genre.id)}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* Sort By */}
+            <View style={styles.filterSection}>
+              <AppText variant="h4" style={styles.filterSectionTitle}>Sort By</AppText>
+              {SORT_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={styles.sortOption}
+                  onPress={() => setSelectedSort(option.id)}
+                >
+                  <AppText variant="body" style={[
+                    styles.sortOptionText,
+                    selectedSort === option.id && styles.sortOptionTextActive
+                  ]}>
+                    {option.name}
+                  </AppText>
+                  {selectedSort === option.id && (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.purple} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={{ height: spacing.massive }} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 
 export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,11 +357,27 @@ export default function DiscoverScreen() {
       
       const genreParam = selectedGenres.length > 0 ? `&with_genres=${selectedGenres.join(',')}` : '';
       const sortParam = selectedSort ? `&sort_by=${selectedSort}` : '';
-      const typeParam = mediaType !== 'all' ? mediaType : 'movie';
       
-      const response = await api.get(
-        `/media/trending?mediaType=${typeParam}&timeWindow=week&page=${currentPage}${genreParam}${sortParam}`
-      );
+      let response;
+      
+      if (mediaType === 'all') {
+        // Fetch both movies and TV shows
+        const [moviesRes, tvRes] = await Promise.all([
+          api.get(`/media/trending?mediaType=movie&timeWindow=week&page=${currentPage}${genreParam}${sortParam}`),
+          api.get(`/media/trending?mediaType=tv&timeWindow=week&page=${currentPage}${genreParam}${sortParam}`)
+        ]);
+        
+        const combinedResults = [
+          ...moviesRes.data.data.results.map(item => ({ ...item, media_type: 'movie' })),
+          ...tvRes.data.data.results.map(item => ({ ...item, media_type: 'tv' }))
+        ].sort((a, b) => b.vote_average - a.vote_average);
+        
+        response = { data: { data: { results: combinedResults } } };
+      } else {
+        response = await api.get(
+          `/media/trending?mediaType=${mediaType}&timeWindow=week&page=${currentPage}${genreParam}${sortParam}`
+        );
+      }
       
       const newResults = response.data.data.results.map(item => ({
         ...item,
@@ -221,6 +405,7 @@ export default function DiscoverScreen() {
   };
 
   const toggleGenre = (genreId) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedGenres(prev =>
       prev.includes(genreId)
         ? prev.filter(id => id !== genreId)
@@ -244,15 +429,20 @@ export default function DiscoverScreen() {
   };
 
   const renderItem = ({ item, index }) => (
-    <View style={[styles.gridItem, index % 2 === 0 ? styles.gridItemLeft : styles.gridItemRight]}>
+    <Animated.View 
+      style={[styles.gridItem, index % 2 === 0 ? styles.gridItemLeft : styles.gridItemRight]}
+      entering={FadeInUp.duration(300).delay(index * 40)}
+      layout={Layout.springify().damping(15)}
+    >
       <MediaCard
         media={item}
         showStatus={false}
         showRating={true}
-        width={165}
-        height={248}
+        showTitle={false}
+        width={155}
+        height={233}
       />
-    </View>
+    </Animated.View>
   );
 
   const renderFooter = () => {
@@ -267,10 +457,10 @@ export default function DiscoverScreen() {
   const renderEmpty = () => (
     <View style={styles.emptyState}>
       <Ionicons name="search" size={80} color={colors.textTertiary} />
-      <Text style={styles.emptyTitle}>No results found</Text>
-      <Text style={styles.emptySubtitle}>
+      <AppText variant="h3" style={styles.emptyTitle}>No results found</AppText>
+      <AppText variant="body" style={styles.emptySubtitle}>
         {searchQuery ? 'Try a different search term' : 'Try adjusting your filters'}
-      </Text>
+      </AppText>
     </View>
   );
 
@@ -304,78 +494,23 @@ export default function DiscoverScreen() {
         keyboardDismissMode="on-drag"
       />
 
-      {/* Filter Modal */}
+      {/* Custom Animated Filter Modal */}
       <Modal
         visible={filterModalVisible}
-        animationType="slide"
         transparent={true}
         onRequestClose={closeFilters}
+        statusBarTranslucent
+        animationType="none"
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Filters</Text>
-                <View style={styles.modalHeaderActions}>
-                  <TouchableOpacity onPress={clearFilters} style={styles.clearButton}>
-                    <Text style={styles.clearText}>Clear All</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={closeFilters} style={styles.closeButton}>
-                    <Ionicons name="close" size={28} color={colors.textPrimary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-          {/* Genres */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Genres</Text>
-            <View style={styles.genreGrid}>
-              {GENRES.map((genre) => (
-                <TouchableOpacity
-                  key={genre.id}
-                  style={[
-                    styles.genreChip,
-                    selectedGenres.includes(genre.id) && styles.genreChipActive
-                  ]}
-                  onPress={() => toggleGenre(genre.id)}
-                >
-                  <Text style={[
-                    styles.genreChipText,
-                    selectedGenres.includes(genre.id) && styles.genreChipTextActive
-                  ]}>
-                    {genre.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Sort By */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Sort By</Text>
-            {SORT_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={styles.sortOption}
-                onPress={() => setSelectedSort(option.id)}
-              >
-                <Text style={[
-                  styles.sortOptionText,
-                  selectedSort === option.id && styles.sortOptionTextActive
-                ]}>
-                  {option.name}
-                </Text>
-                {selectedSort === option.id && (
-                  <Ionicons name="checkmark-circle" size={20} color={colors.purple} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-
-              <View style={{ height: spacing.massive }} />
-            </ScrollView>
-          </View>
-        </View>
+        <FilterModalContent 
+          isVisible={filterModalVisible}
+          closeFilters={closeFilters}
+          clearFilters={clearFilters}
+          selectedGenres={selectedGenres}
+          toggleGenre={toggleGenre}
+          selectedSort={selectedSort}
+          setSelectedSort={setSelectedSort}
+        />
       </Modal>
     </View>
   );
@@ -392,43 +527,49 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   searchBlur: {
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
     overflow: 'hidden',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
   },
   searchInput: {
     flex: 1,
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     color: colors.textPrimary,
   },
   filterChips: {
     flexDirection: 'row',
     paddingHorizontal: spacing.xl,
-    gap: spacing.sm,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   filterButton: {
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
     overflow: 'hidden',
+    shadowColor: colors.purple,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   filterButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md + 2,
+    gap: spacing.md,
   },
   filterButtonText: {
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.bold,
     color: colors.textPrimary,
   },
   filterBadge: {
@@ -440,46 +581,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterBadgeText: {
-    fontSize: typography.tiny,
+    fontSize: typography.tiny.fontSize,
     fontWeight: typography.bold,
     color: '#000',
   },
   mediaTypeToggle: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: borderRadius.lg,
-    padding: spacing.xs,
+    borderWidth: 2,
+    borderColor: colors.purple,
+    borderRadius: borderRadius.xl,
+    overflow: 'hidden',
   },
   mediaTypeButton: {
     flex: 1,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    borderRadius: borderRadius.md,
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   mediaTypeButtonActive: {
     backgroundColor: colors.purple,
   },
   mediaTypeText: {
-    fontSize: typography.caption,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.textSecondary,
   },
   mediaTypeTextActive: {
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.bold,
     color: colors.textPrimary,
   },
   listContent: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
   gridItem: {
     width: '50%',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   gridItemLeft: {
-    paddingRight: spacing.xs,
+    paddingRight: spacing.sm,
   },
   gridItemRight: {
-    paddingLeft: spacing.xs,
+    paddingLeft: spacing.sm,
   },
   footer: {
     paddingVertical: spacing.xl,
@@ -490,13 +636,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyTitle: {
-    fontSize: typography.h3,
+    fontSize: typography.h3.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginTop: spacing.lg,
   },
   emptySubtitle: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     color: colors.textSecondary,
     marginTop: spacing.sm,
   },
@@ -527,7 +673,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   modalTitle: {
-    fontSize: typography.h2,
+    fontSize: typography.h2.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
   },
@@ -538,7 +684,7 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   clearText: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.purple,
   },
@@ -546,7 +692,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxl,
   },
   filterSectionTitle: {
-    fontSize: typography.h4,
+    fontSize: typography.h4.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginBottom: spacing.md,
@@ -554,27 +700,28 @@ const styles = StyleSheet.create({
   genreGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   genreChip: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md + 2,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   genreChipActive: {
     backgroundColor: colors.purple + '30',
     borderColor: colors.purple,
   },
   genreChipText: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.textSecondary,
   },
   genreChipTextActive: {
     color: colors.purple,
+    fontWeight: typography.bold,
   },
   sortOption: {
     flexDirection: 'row',
@@ -585,7 +732,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   sortOptionText: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     color: colors.textSecondary,
   },
   sortOptionTextActive: {
@@ -593,3 +740,4 @@ const styles = StyleSheet.create({
     fontWeight: typography.semibold,
   },
 });
+

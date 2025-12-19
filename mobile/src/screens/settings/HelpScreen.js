@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   headerTitle: {
-    fontSize: typography.h3,
+    fontSize: typography.h3.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
   },
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   sectionTitle: {
-    fontSize: typography.h4,
+    fontSize: typography.h4.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginBottom: spacing.lg,
@@ -155,13 +155,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   helpTitle: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   helpDescription: {
-    fontSize: typography.caption,
+    fontSize: typography.caption.fontSize,
     color: colors.textSecondary,
   },
   infoCard: {
@@ -176,13 +176,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   infoLabel: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.textSecondary,
   },
   infoValue: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
   },
 });
+

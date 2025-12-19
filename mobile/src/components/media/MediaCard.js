@@ -3,13 +3,21 @@ import {
   View,
   Text,
   StyleSheet,
-  Pressable,
   Image,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography, spacing, borderRadius } from '../../constants/theme';
+import AppText from '../common/AppText';
 
 const MediaCard = ({
   media,
@@ -19,12 +27,17 @@ const MediaCard = ({
   onLongPress,
   showStatus = true,
   showRating = true,
+  showTitle = true,
   width = 150,
   height = 225,
 }) => {
   const navigation = useNavigation();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  // Animation values
+  const scale = useSharedValue(1);
+  const shadowOpacity = useSharedValue(0.15);
 
   const handlePress = () => {
     if (onPress) {
@@ -36,6 +49,22 @@ const MediaCard = ({
       });
     }
   };
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
+    shadowOpacity.value = withTiming(0.08, { duration: 150 });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+    shadowOpacity.value = withTiming(0.15, { duration: 200 });
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    shadowOpacity: shadowOpacity.value,
+  }));
 
   // Status badge configuration
   const getStatusConfig = (status) => {
@@ -59,11 +88,16 @@ const MediaCard = ({
     : null;
 
   return (
-    <Pressable
-      style={[styles.container, { width, height }]}
-      onPress={handlePress}
-      onLongPress={onLongPress}
+    <Animated.View
+      style={[styles.container, { width, height }, animatedStyle]}
     >
+      <Pressable
+        style={styles.pressable}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onLongPress={onLongPress}
+      >
       {/* Poster Image */}
       <View style={styles.imageContainer}>
         {!imageLoaded && !imageError && (
@@ -75,9 +109,9 @@ const MediaCard = ({
         {imageError || !posterURL ? (
           <View style={[styles.placeholder, { width, height }]}>
             <Ionicons name="film-outline" size={48} color={colors.softGrey} />
-            <Text style={styles.placeholderText} numberOfLines={2}>
+            <AppText variant="caption" style={styles.placeholderText} numberOfLines={2}>
               {media.title}
-            </Text>
+            </AppText>
           </View>
         ) : (
           <Image
@@ -100,41 +134,47 @@ const MediaCard = ({
         {showRating && rating && (
           <View style={styles.ratingContainer}>
             <Ionicons name="star" size={14} color={colors.toWatch} />
-            <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+            <AppText variant="metadata" style={styles.ratingText}>{rating.toFixed(1)}</AppText>
           </View>
         )}
+      </View>
 
-        {/* Title Overlay */}
+      {/* Title Below Image */}
+      {showTitle && (
         <View style={styles.titleContainer}>
-          <Text style={styles.title} numberOfLines={2}>
+          <AppText variant="cardTitle" style={styles.title} numberOfLines={2}>
             {media.title}
-          </Text>
+          </AppText>
           {media.releaseDate && (
-            <Text style={styles.year}>
+            <AppText variant="metadata" style={styles.year}>
               {new Date(media.releaseDate).getFullYear()}
-            </Text>
+            </AppText>
           )}
         </View>
-      </View>
-    </Pressable>
+      )}
+      </Pressable>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     marginRight: spacing.md,
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
   },
-  imageContainer: {
+  pressable: {
     flex: 1,
+  },
+  imageContainer: {
+    width: '100%',
     position: 'relative',
     backgroundColor: colors.cardDark,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
   },
   image: {
     borderRadius: borderRadius.md,
@@ -154,7 +194,6 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: colors.softGrey,
-    fontSize: typography.caption,
     textAlign: 'center',
     marginTop: spacing.sm,
   },
@@ -179,35 +218,27 @@ const styles = StyleSheet.create({
     left: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.8)',
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: borderRadius.sm,
   },
   ratingText: {
     color: '#fff',
-    fontSize: typography.small,
-    fontWeight: typography.semibold,
     marginLeft: 4,
   },
   titleContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   title: {
-    color: '#fff',
-    fontSize: typography.caption,
-    fontWeight: typography.semibold,
-    marginBottom: 2,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   year: {
-    color: colors.softGrey,
-    fontSize: typography.small,
+    color: colors.textSecondary,
   },
 });
 
 export default MediaCard;
+

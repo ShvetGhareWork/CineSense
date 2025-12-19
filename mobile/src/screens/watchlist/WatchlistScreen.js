@@ -6,12 +6,25 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
-  RefreshControl,
   Alert,
+  RefreshControl,
+  ScrollView,
 } from 'react-native';
+import Animated, {
+  FadeOut,
+  Layout,
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withSpring,
+  withTiming,
+  interpolate,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import useWatchlistStore from '../../store/watchlistStore';
 import { colors, gradients, typography, spacing, borderRadius } from '../../constants/theme';
@@ -38,9 +51,208 @@ const STATUS_LABELS = {
   dropped: 'Dropped',
 };
 
+import { getStaggerDelay, useProgressAnimation, useFloatingAnimation } from '../../utils/animations';
+import AppText from '../../components/common/AppText';
+
+const WatchlistItem = ({ item, handlePress, handleRemove, handleStatusChange }) => {
+  const translateX = useSharedValue(0);
+  const posterUrl = item.mediaId?.posterPath
+    ? `https://image.tmdb.org/t/p/w500${item.mediaId.posterPath}`
+    : null;
+
+  const statusColor = STATUS_COLORS[item.status] || colors.textSecondary;
+  const progress = item.progress || 0;
+  
+  // Animated progress bar
+  const { animatedStyle: progressStyle, setProgress } = useProgressAnimation(0);
+  
+  useEffect(() => {
+    if (item.status === 'in_progress') {
+      // Small delay to ensure the progress bar animation is visible after mount
+      setTimeout(() => {
+        setProgress(progress / 100);
+      }, 500);
+    }
+  }, [progress, item.status]);
+
+  const hasTriggeredHaptic = useSharedValue(false);
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      // Physics resistance: ease resistance as we pull further
+      const x = event.translationX;
+      if (x > 0) {
+        // Resistance for swiping right (not allowed here, just feedback)
+        translateX.value = x * 0.2;
+      } else {
+        // Swipe left with resistance after threshold
+        if (x < -120) {
+          translateX.value = -120 + (x + 120) * 0.3;
+        } else {
+          translateX.value = x;
+        }
+
+        // Trigger haptic when crossing threshold
+        if (x < -100 && !hasTriggeredHaptic.value) {
+          hasTriggeredHaptic.value = true;
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        } else if (x > -100 && hasTriggeredHaptic.value) {
+          hasTriggeredHaptic.value = false;
+        }
+      }
+    })
+    .onEnd((event) => {
+      hasTriggeredHaptic.value = false;
+      if (event.translationX < -100) {
+        // Trigger delete
+        translateX.value = withTiming(-500, { duration: 200 }, () => {
+          // removeFromWatchlist handles the removal from store
+          // which triggers the layout animation vertical collapse
+        });
+        handleRemove(item);
+      } else {
+        translateX.value = withSpring(0);
+      }
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const bgStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [-100, -50], [1, 0], 'clamp'),
+    transform: [{ scale: interpolate(translateX.value, [-100, -50], [1, 0.8], 'clamp') }],
+  }));
+
+  return (
+    <Animated.View
+      layout={Layout.springify().damping(18)}
+      exiting={FadeOut.duration(250)}
+    >
+      <View style={styles.swipeBackground}>
+        <Animated.View style={[styles.deleteAction, bgStyle]}>
+          <Ionicons name="trash" size={24} color="#fff" />
+        </Animated.View>
+      </View>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={[styles.cardContainer, animatedStyle]}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => handlePress(item)}
+            activeOpacity={1} // Handled by gesture
+          >
+            <LinearGradient
+              colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+              style={styles.cardGradient}
+            >
+              {/* Poster */}
+              <View style={styles.posterContainer}>
+                {posterUrl ? (
+                  <Image source={{ uri: posterUrl }} style={styles.poster} />
+                ) : (
+                  <View style={[styles.poster, styles.posterPlaceholder]}>
+                    <Ionicons name="film-outline" size={30} color={colors.textTertiary} />
+                  </View>
+                )}
+              </View>
+
+              {/* Content */}
+              <View style={styles.content}>
+                {/* Title */}
+                <AppText variant="cardTitle" style={styles.title} numberOfLines={2}>
+                  {item.mediaId?.title}
+                </AppText>
+
+                {/* Meta Info */}
+                <View style={styles.metaRow}>
+                  <View style={styles.metaItem}>
+                    <Ionicons 
+                      name={item.mediaId?.type === 'tv' ? 'tv' : 'film'} 
+                      size={14} 
+                      color={colors.textSecondary} 
+                    />
+                    <AppText variant="metadata" style={styles.metaText}>
+                      {item.mediaId?.type === 'tv' ? 'TV Show' : 'Movie'}
+                    </AppText>
+                  </View>
+                  {item.mediaId?.year && (
+                    <View style={styles.metaItem}>
+                      <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+                      <AppText variant="metadata" style={styles.metaText}>{item.mediaId.year}</AppText>
+                    </View>
+                  )}
+                </View>
+
+                {/* Status Badge */}
+                <View style={[styles.statusBadge, { backgroundColor: statusColor + '20', borderColor: statusColor }]}>
+                  <AppText variant="caption" style={[styles.statusText, { color: statusColor }]}>
+                    {STATUS_LABELS[item.status]}
+                  </AppText>
+                </View>
+
+                {/* Progress Bar */}
+                {item.status === 'in_progress' && progress > 0 && (
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
+                      <Animated.View
+                        style={[
+                          styles.progressFill,
+                          { backgroundColor: colors.blue }, // Fallback color
+                          progressStyle,
+                          { width: '100%', transformOrigin: 'left' }
+                        ]}
+                      >
+                        <LinearGradient
+                          colors={gradients.blue}
+                          style={StyleSheet.absoluteFill}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                        />
+                      </Animated.View>
+                    </View>
+                    <AppText variant="metadata" style={styles.progressText}>{Math.round(progress)}%</AppText>
+                  </View>
+                )}
+
+                {/* Rating */}
+                {item.status === 'finished' && item.mediaId?.voteAverage && (
+                  <View style={styles.ratingContainer}>
+                    <Ionicons name="star" size={14} color={colors.gold} />
+                    <AppText variant="metadata" style={styles.ratingText}>{item.mediaId.voteAverage.toFixed(1)}</AppText>
+                  </View>
+                )}
+
+                {/* Quick Actions */}
+                <View style={styles.actions}>
+                  {item.status !== 'finished' && (
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => handleStatusChange(item, 'finished')}
+                    >
+                      <Ionicons name="checkmark-circle-outline" size={20} color={colors.green} />
+                      <AppText variant="caption" style={styles.actionText}>Mark Watched</AppText>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleRemove(item)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color={colors.red} />
+                    <AppText variant="caption" style={[styles.actionText, { color: colors.red }]}>Remove</AppText>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+      </GestureDetector>
+    </Animated.View>
+  );
+};
+
 export default function WatchlistScreen() {
   const navigation = useNavigation();
-  const { items, fetchWatchlist, removeFromWatchlist, updateWatchlistStatus, loading } = useWatchlistStore();
+  const { items, fetchWatchlist, removeFromWatchlist, updateStatus, loading } = useWatchlistStore();
   const [activeTab, setActiveTab] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -81,121 +293,21 @@ export default function WatchlistScreen() {
   };
 
   const handleStatusChange = async (item, newStatus) => {
-    await updateWatchlistStatus(item._id, newStatus);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await updateStatus(item._id, newStatus);
   };
 
-  const renderItem = ({ item }) => {
-    const posterUrl = item.mediaId?.posterPath
-      ? `https://image.tmdb.org/t/p/w500${item.mediaId.posterPath}`
-      : null;
-
-    const statusColor = STATUS_COLORS[item.status] || colors.textSecondary;
-    const progress = item.progress || 0;
-
-    return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => handlePress(item)}
-        activeOpacity={0.9}
-      >
-        <LinearGradient
-          colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
-          style={styles.cardGradient}
-        >
-          {/* Poster */}
-          <View style={styles.posterContainer}>
-            {posterUrl ? (
-              <Image source={{ uri: posterUrl }} style={styles.poster} />
-            ) : (
-              <View style={[styles.poster, styles.posterPlaceholder]}>
-                <Ionicons name="film-outline" size={30} color={colors.textTertiary} />
-              </View>
-            )}
-          </View>
-
-          {/* Content */}
-          <View style={styles.content}>
-            {/* Title */}
-            <Text style={styles.title} numberOfLines={2}>
-              {item.mediaId?.title}
-            </Text>
-
-            {/* Meta Info */}
-            <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
-                <Ionicons 
-                  name={item.mediaId?.type === 'tv' ? 'tv' : 'film'} 
-                  size={14} 
-                  color={colors.textSecondary} 
-                />
-                <Text style={styles.metaText}>
-                  {item.mediaId?.type === 'tv' ? 'TV Show' : 'Movie'}
-                </Text>
-              </View>
-              {item.mediaId?.year && (
-                <View style={styles.metaItem}>
-                  <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
-                  <Text style={styles.metaText}>{item.mediaId.year}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Status Badge */}
-            <View style={[styles.statusBadge, { backgroundColor: statusColor + '20', borderColor: statusColor }]}>
-              <Text style={[styles.statusText, { color: statusColor }]}>
-                {STATUS_LABELS[item.status]}
-              </Text>
-            </View>
-
-            {/* Progress Bar (for in_progress) */}
-            {item.status === 'in_progress' && progress > 0 && (
-              <View style={styles.progressContainer}>
-                <View style={styles.progressBar}>
-                  <LinearGradient
-                    colors={gradients.blue}
-                    style={[styles.progressFill, { width: `${progress}%` }]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  />
-                </View>
-                <Text style={styles.progressText}>{Math.round(progress)}%</Text>
-              </View>
-            )}
-
-            {/* Rating (for finished) */}
-            {item.status === 'finished' && item.mediaId?.voteAverage && (
-              <View style={styles.ratingContainer}>
-                <Ionicons name="star" size={14} color={colors.gold} />
-                <Text style={styles.ratingText}>{item.mediaId.voteAverage.toFixed(1)}</Text>
-              </View>
-            )}
-
-            {/* Quick Actions */}
-            <View style={styles.actions}>
-              {item.status !== 'finished' && (
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleStatusChange(item, 'finished')}
-                >
-                  <Ionicons name="checkmark-circle-outline" size={20} color={colors.green} />
-                  <Text style={styles.actionText}>Mark Watched</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleRemove(item)}
-              >
-                <Ionicons name="trash-outline" size={20} color={colors.red} />
-                <Text style={[styles.actionText, { color: colors.red }]}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  };
+  const renderItem = ({ item }) => (
+    <WatchlistItem 
+      item={item}
+      handlePress={handlePress}
+      handleRemove={handleRemove}
+      handleStatusChange={handleStatusChange}
+    />
+  );
 
   const renderEmpty = () => {
+    const floatingStyle = useFloatingAnimation(15, 3000);
     const emptyMessages = {
       all: {
         icon: 'list-outline',
@@ -228,14 +340,16 @@ export default function WatchlistScreen() {
 
     return (
       <View style={styles.emptyState}>
-        <LinearGradient
-          colors={gradients.purple}
-          style={styles.emptyIconCircle}
-        >
-          <Ionicons name={message.icon} size={60} color="#fff" />
-        </LinearGradient>
-        <Text style={styles.emptyTitle}>{message.title}</Text>
-        <Text style={styles.emptySubtitle}>{message.subtitle}</Text>
+        <Animated.View style={[styles.emptyIconCircle, floatingStyle]}>
+          <LinearGradient
+            colors={gradients.purple}
+            style={styles.emptyIconGradient}
+          >
+            <Ionicons name={message.icon} size={60} color="#fff" />
+          </LinearGradient>
+        </Animated.View>
+        <AppText variant="h2" style={styles.emptyTitle}>{message.title}</AppText>
+        <AppText variant="body" style={styles.emptySubtitle}>{message.subtitle}</AppText>
         <TouchableOpacity
           style={styles.ctaButton}
           onPress={() => navigation.navigate('Discover')}
@@ -245,7 +359,7 @@ export default function WatchlistScreen() {
             style={styles.ctaGradient}
           >
             <Ionicons name="search" size={20} color="#fff" />
-            <Text style={styles.ctaText}>Discover Something New</Text>
+            <AppText variant="cardTitle" style={styles.ctaText}>Discover Something New</AppText>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -256,7 +370,11 @@ export default function WatchlistScreen() {
     <View style={styles.container}>
       {/* Segmented Tabs */}
       <View style={styles.tabsContainer}>
-        <View style={styles.tabsWrapper}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsWrapper}
+        >
           {TABS.map((item) => (
             <TouchableOpacity
               key={item.id}
@@ -272,17 +390,17 @@ export default function WatchlistScreen() {
                   end={{ x: 1, y: 0 }}
                 >
                   <Ionicons name={item.icon} size={16} color="#fff" />
-                  <Text style={styles.tabTextActive}>{item.label}</Text>
+                  <AppText variant="caption" style={styles.tabTextActive}>{item.label}</AppText>
                 </LinearGradient>
               ) : (
                 <View style={styles.tabInactive}>
-                  <Ionicons name={item.icon} size={16} color={colors.textSecondary} />
-                  <Text style={styles.tabText}>{item.label}</Text>
+                   <Ionicons name={item.icon} size={16} color={colors.textSecondary} />
+                  <AppText variant="caption" style={styles.tabText}>{item.label}</AppText>
                 </View>
               )}
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       {/* Watchlist Items */}
@@ -313,49 +431,54 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
     backgroundColor: colors.midnight,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
   tabsWrapper: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
   },
   tab: {
     borderRadius: borderRadius.full,
     overflow: 'hidden',
+    shadowColor: colors.purple,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tabGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.xs,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md + 2,
+    gap: spacing.sm,
   },
   tabInactive: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.xs,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md + 2,
+    gap: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   tabActive: {
     // Gradient handles the background
   },
   tabText: {
-    fontSize: typography.caption,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.textSecondary,
   },
   tabTextActive: {
-    fontSize: typography.caption,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
   },
   listContent: {
-    padding: spacing.xl,
+    padding: spacing.lg,
   },
   card: {
     marginBottom: spacing.lg,
@@ -372,9 +495,31 @@ const styles = StyleSheet.create({
   posterContainer: {
     marginRight: spacing.md,
   },
+  cardContainer: {
+    backgroundColor: colors.midnight,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  swipeBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.red,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingRight: spacing.massive,
+    borderRadius: borderRadius.lg,
+    marginVertical: spacing.sm,
+  },
+  deleteAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   poster: {
-    width: 80,
-    height: 120,
+    width: 70,
+    height: 105,
     borderRadius: borderRadius.md,
     backgroundColor: colors.cardDark,
   },
@@ -387,10 +532,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    fontSize: typography.h4,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   metaRow: {
     flexDirection: 'row',
@@ -403,7 +548,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   metaText: {
-    fontSize: typography.caption,
+    fontSize: typography.caption.fontSize,
     color: colors.textSecondary,
   },
   statusBadge: {
@@ -415,7 +560,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   statusText: {
-    fontSize: typography.caption,
+    fontSize: typography.caption.fontSize,
     fontWeight: typography.bold,
     letterSpacing: 0.5,
   },
@@ -427,16 +572,16 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     flex: 1,
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 2,
+    height: 5,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
   },
   progressText: {
-    fontSize: typography.small,
+    fontSize: typography.small.fontSize,
     fontWeight: typography.bold,
     color: colors.blue,
   },
@@ -447,21 +592,23 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   ratingText: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.bold,
     color: colors.gold,
   },
   actions: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.lg,
+    marginTop: spacing.xs,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   actionText: {
-    fontSize: typography.caption,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.green,
   },
@@ -472,19 +619,25 @@ const styles = StyleSheet.create({
   emptyIconCircle: {
     width: 120,
     height: 120,
+    marginBottom: spacing.xl,
+  },
+  emptyIconGradient: {
+    width: '100%',
+    height: '100%',
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    shadowColor: colors.purple,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
   emptyTitle: {
-    fontSize: typography.h2,
-    fontWeight: typography.bold,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
   },
   emptySubtitle: {
-    fontSize: typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.xxl,
@@ -502,8 +655,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   ctaText: {
-    fontSize: typography.h5,
-    fontWeight: typography.bold,
     color: colors.textPrimary,
   },
 });
+

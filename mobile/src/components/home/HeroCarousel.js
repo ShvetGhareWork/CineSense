@@ -13,9 +13,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, gradients, typography, spacing, borderRadius, layout } from '../../constants/theme';
+import AppText from '../common/AppText';
 
 const { width, height } = Dimensions.get('window');
-const HERO_HEIGHT = 500;
+const HERO_HEIGHT = 550; // Increased for better image prominence
 const AUTO_SCROLL_INTERVAL = 5000;
 
 export default function HeroCarousel({ items = [] }) {
@@ -68,6 +69,13 @@ export default function HeroCarousel({ items = [] }) {
       extrapolate: 'clamp',
     });
 
+    // Parallax effect for backdrop
+    const translateX = scrollX.interpolate({
+      inputRange,
+      outputRange: [width * 0.4, 0, -width * 0.4],
+      extrapolate: 'clamp',
+    });
+
     const backdropUrl = item.backdrop_path
       ? `https://image.tmdb.org/t/p/original${item.backdrop_path}`
       : null;
@@ -79,27 +87,31 @@ export default function HeroCarousel({ items = [] }) {
         style={styles.heroItem}
       >
         <Animated.View style={[styles.heroContent, { transform: [{ scale }], opacity }]}>
-          {/* Backdrop Image */}
+          {/* Backdrop Image with Parallax */}
           {backdropUrl && (
-            <Image
+            <Animated.Image
               source={{ uri: backdropUrl }}
-              style={styles.backdrop}
+              style={[
+                styles.backdrop,
+                { transform: [{ translateX }] }
+              ]}
               resizeMode="cover"
             />
           )}
 
-          {/* Gradient Overlay */}
+          {/* Gradient Overlay - Optimized for better image visibility */}
           <LinearGradient
-            colors={gradients.darkOverlay}
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.95)']}
+            locations={[0, 0.4, 1]}
             style={styles.gradient}
           />
 
           {/* Content Overlay */}
           <View style={styles.overlay}>
             {/* Title */}
-            <Text style={styles.title} numberOfLines={2}>
+            <AppText variant="hero" style={styles.title} numberOfLines={2}>
               {item.title || item.name}
-            </Text>
+            </AppText>
 
             {/* Meta Info */}
             <View style={styles.metaRow}>
@@ -111,21 +123,21 @@ export default function HeroCarousel({ items = [] }) {
                 end={{ x: 1, y: 1 }}
               >
                 <Ionicons name="star" size={16} color="#000" />
-                <Text style={styles.ratingText}>{item.vote_average?.toFixed(1)}</Text>
+                <AppText variant="metadata" style={styles.ratingText}>{item.vote_average?.toFixed(1)}</AppText>
               </LinearGradient>
 
               {/* Year */}
               {(item.release_date || item.first_air_date) && (
-                <Text style={styles.year}>
+                <AppText variant="metadata" style={styles.year}>
                   {(item.release_date || item.first_air_date).split('-')[0]}
-                </Text>
+                </AppText>
               )}
 
               {/* Type */}
               <View style={styles.typeBadge}>
-                <Text style={styles.typeText}>
+                <AppText variant="caption" style={styles.typeText}>
                   {item.media_type === 'tv' ? 'TV SHOW' : 'MOVIE'}
-                </Text>
+                </AppText>
               </View>
             </View>
 
@@ -134,7 +146,7 @@ export default function HeroCarousel({ items = [] }) {
               <View style={styles.genresRow}>
                 {item.genre_ids.slice(0, 3).map((genreId, idx) => (
                   <View key={genreId} style={styles.genreChip}>
-                    <Text style={styles.genreText}>{getGenreName(genreId)}</Text>
+                    <AppText variant="metadata" style={styles.genreText}>{getGenreName(genreId)}</AppText>
                   </View>
                 ))}
               </View>
@@ -153,7 +165,7 @@ export default function HeroCarousel({ items = [] }) {
                 end={{ x: 1, y: 0 }}
               >
                 <Ionicons name="play" size={20} color="#fff" />
-                <Text style={styles.ctaText}>Watch Now</Text>
+                <AppText variant="cardTitle" style={styles.ctaText}>Watch Now</AppText>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -256,18 +268,18 @@ const styles = StyleSheet.create({
   },
   overlay: {
     position: 'absolute',
-    bottom: spacing.xxxl,
+    bottom: spacing.xxxl + spacing.lg,
     left: spacing.xl,
     right: spacing.xl,
   },
   title: {
-    fontSize: typography.hero,
-    fontWeight: typography.black,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+    marginBottom: spacing.lg,
+    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 12,
+    fontSize: 32,
+    fontWeight: '800',
+    lineHeight: 38,
   },
   metaRow: {
     flexDirection: 'row',
@@ -278,19 +290,22 @@ const styles = StyleSheet.create({
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
-    gap: spacing.xs,
+    gap: spacing.sm,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   ratingText: {
-    fontSize: typography.body,
-    fontWeight: typography.black,
     color: '#000',
+    fontWeight: '700',
+    fontSize: 15,
   },
   year: {
-    fontSize: typography.body,
-    fontWeight: typography.semibold,
     color: colors.textSecondary,
   },
   typeBadge: {
@@ -302,10 +317,7 @@ const styles = StyleSheet.create({
     borderColor: colors.purple,
   },
   typeText: {
-    fontSize: typography.caption,
-    fontWeight: typography.bold,
     color: colors.purple,
-    letterSpacing: 1,
   },
   genresRow: {
     flexDirection: 'row',
@@ -321,26 +333,29 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.2)',
   },
   genreText: {
-    fontSize: typography.caption,
-    fontWeight: typography.semibold,
     color: colors.textPrimary,
   },
   ctaButton: {
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     alignSelf: 'flex-start',
+    shadowColor: colors.purple,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
   ctaGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.lg,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.xxxl,
+    paddingVertical: spacing.lg + 2,
+    gap: spacing.md,
   },
   ctaText: {
-    fontSize: typography.h5,
-    fontWeight: typography.bold,
     color: colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 16,
   },
   pagination: {
     position: 'absolute',
@@ -362,3 +377,4 @@ const styles = StyleSheet.create({
     width: 24,
   },
 });
+

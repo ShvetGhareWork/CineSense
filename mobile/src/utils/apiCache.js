@@ -1,127 +1,80 @@
 /**
- * API Cache Utility using MMKV
- * 
- * Provides fast, efficient caching for API responses to improve performance
- * and enable offline support.
+ * API Cache Utility using AsyncStorage (Expo Go compatible)
+ * Provides simple caching for API responses
  */
 
-import { MMKV } from 'react-native-mmkv';
-import logger from './logger';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Initialize MMKV storage
-const storage = new MMKV({
-  id: 'api-cache',
-  encryptionKey: 'cinesense-cache-key-2024'
-});
+const CACHE_PREFIX = 'api_cache_';
+const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Cache TTL (Time To Live) in milliseconds
-const CACHE_TTL = {
-  SHORT: 5 * 60 * 1000,      // 5 minutes
-  MEDIUM: 30 * 60 * 1000,    // 30 minutes
-  LONG: 60 * 60 * 1000,      // 1 hour
-  DAY: 24 * 60 * 60 * 1000,  // 24 hours
+/**
+ * Set a value in cache with TTL
+ */
+export const setCache = async (key, value, ttl = DEFAULT_TTL) => {
+  try {
+    const cacheData = {
+      value,
+      timestamp: Date.now(),
+      ttl,
+    };
+    await AsyncStorage.setItem(`${CACHE_PREFIX}${key}`, JSON.stringify(cacheData));
+  } catch (error) {
+    console.error('Cache set error:', error);
+  }
 };
 
-class APICache {
-  /**
-   * Set cache with TTL
-   */
-  set(key, data, ttl = CACHE_TTL.MEDIUM) {
-    try {
-      const cacheItem = {
-        data,
-        timestamp: Date.now(),
-        ttl,
-      };
-      storage.set(key, JSON.stringify(cacheItem));
-      logger.debug(`Cache SET: ${key}`);
-    } catch (error) {
-      logger.error('Cache SET error:', error);
-    }
-  }
+/**
+ * Get a value from cache if not expired
+ */
+export const getCache = async (key) => {
+  try {
+    const cached = await AsyncStorage.getItem(`${CACHE_PREFIX}${key}`);
+    if (!cached) return null;
 
-  /**
-   * Get cache if not expired
-   */
-  get(key) {
-    try {
-      const cached = storage.getString(key);
-      if (!cached) {
-        logger.debug(`Cache MISS: ${key}`);
-        return null;
-      }
+    const cacheData = JSON.parse(cached);
+    const now = Date.now();
 
-      const cacheItem = JSON.parse(cached);
-      const age = Date.now() - cacheItem.timestamp;
-
-      // Check if cache is expired
-      if (age > cacheItem.ttl) {
-        logger.debug(`Cache EXPIRED: ${key} (age: ${Math.round(age / 1000)}s)`);
-        this.delete(key);
-        return null;
-      }
-
-      logger.debug(`Cache HIT: ${key} (age: ${Math.round(age / 1000)}s)`);
-      return cacheItem.data;
-    } catch (error) {
-      logger.error('Cache GET error:', error);
+    // Check if cache is expired
+    if (now - cacheData.timestamp > cacheData.ttl) {
+      await AsyncStorage.removeItem(`${CACHE_PREFIX}${key}`);
       return null;
     }
+
+    return cacheData.value;
+  } catch (error) {
+    console.error('Cache get error:', error);
+    return null;
   }
+};
 
-  /**
-   * Delete specific cache entry
-   */
-  delete(key) {
-    try {
-      storage.delete(key);
-      logger.debug(`Cache DELETE: ${key}`);
-    } catch (error) {
-      logger.error('Cache DELETE error:', error);
-    }
+/**
+ * Clear a specific cache entry
+ */
+export const clearCache = async (key) => {
+  try {
+    await AsyncStorage.removeItem(`${CACHE_PREFIX}${key}`);
+  } catch (error) {
+    console.error('Cache clear error:', error);
   }
+};
 
-  /**
-   * Clear all cache
-   */
-  clearAll() {
-    try {
-      storage.clearAll();
-      logger.info('Cache CLEARED ALL');
-    } catch (error) {
-      logger.error('Cache CLEAR ALL error:', error);
-    }
+/**
+ * Clear all cache entries
+ */
+export const clearAllCache = async () => {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const cacheKeys = keys.filter(key => key.startsWith(CACHE_PREFIX));
+    await AsyncStorage.multiRemove(cacheKeys);
+  } catch (error) {
+    console.error('Cache clear all error:', error);
   }
+};
 
-  /**
-   * Get all cache keys
-   */
-  getAllKeys() {
-    try {
-      return storage.getAllKeys();
-    } catch (error) {
-      logger.error('Cache GET ALL KEYS error:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get cache size
-   */
-  getSize() {
-    try {
-      const keys = this.getAllKeys();
-      return keys.length;
-    } catch (error) {
-      logger.error('Cache GET SIZE error:', error);
-      return 0;
-    }
-  }
-}
-
-// Export singleton instance
-const apiCache = new APICache();
-export default apiCache;
-
-// Export cache TTL constants
-export { CACHE_TTL };
+export default {
+  setCache,
+  getCache,
+  clearCache,
+  clearAllCache,
+};

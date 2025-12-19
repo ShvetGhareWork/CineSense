@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../../store/authStore';
 import useWatchlistStore from '../../store/watchlistStore';
 import { colors, gradients, typography, spacing, borderRadius } from '../../constants/theme';
+import AppText from '../../components/common/AppText';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuthStore();
@@ -50,61 +51,97 @@ export default function ProfileScreen({ navigation }) {
           style={styles.profilePhotoBorder}
         >
           <View style={styles.profilePhoto}>
-            <Text style={styles.profileInitial}>
+            <AppText variant="hero" style={styles.profileInitial}>
               {user?.displayName?.charAt(0).toUpperCase() || 'U'}
-            </Text>
+            </AppText>
           </View>
         </LinearGradient>
       </View>
 
       {/* User Info */}
-      <Text style={styles.displayName}>{user?.displayName || 'User'}</Text>
-      <Text style={styles.email}>{user?.email}</Text>
+      <AppText variant="h2" style={styles.displayName}>{user?.displayName || 'User'}</AppText>
+      <AppText variant="body" style={styles.email}>{user?.email}</AppText>
       
       {/* Member Since */}
       <View style={styles.memberBadge}>
         <Ionicons name="calendar-outline" size={14} color={colors.purple} />
-        <Text style={styles.memberText}>
+        <AppText variant="caption" style={styles.memberText}>
           Member since {new Date(user?.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-        </Text>
+        </AppText>
       </View>
     </View>
   );
 
   const renderQuickStats = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Quick Stats</Text>
+      <AppText variant="h3" style={styles.sectionTitle}>Quick Stats</AppText>
       
       <View style={styles.statsGrid}>
         <View style={styles.statCard}>
-          <LinearGradient colors={['#6C63FF15', '#6C63FF05']} style={styles.statCardBg}>
-            <Ionicons name="film" size={28} color={colors.purple} />
-            <Text style={styles.statNumber}>{stats.movies}</Text>
-            <Text style={styles.statLabel}>Movies</Text>
+          <LinearGradient 
+            colors={['#6C63FF25', '#6C63FF10']} 
+            style={styles.statCardBg}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.statIconContainer}>
+              <Ionicons name="film" size={36} color={colors.purple} />
+            </View>
+            <View style={styles.statContent}>
+              <AppText variant="h1" style={styles.statNumber}>{stats.movies}</AppText>
+              <AppText variant="caption" style={styles.statLabel}>Movies</AppText>
+            </View>
           </LinearGradient>
         </View>
 
         <View style={styles.statCard}>
-          <LinearGradient colors={['#3ABEFF15', '#3ABEFF05']} style={styles.statCardBg}>
-            <Ionicons name="tv" size={28} color={colors.cyan} />
-            <Text style={styles.statNumber}>{stats.tvShows}</Text>
-            <Text style={styles.statLabel}>TV Shows</Text>
+          <LinearGradient 
+            colors={['#3ABEFF25', '#3ABEFF10']} 
+            style={styles.statCardBg}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.statIconContainer}>
+              <Ionicons name="tv" size={36} color={colors.cyan} />
+            </View>
+            <View style={styles.statContent}>
+              <AppText variant="h1" style={styles.statNumber}>{stats.tvShows}</AppText>
+              <AppText variant="caption" style={styles.statLabel}>TV Shows</AppText>
+            </View>
           </LinearGradient>
         </View>
 
         <View style={styles.statCard}>
-          <LinearGradient colors={['#27AE6015', '#27AE6005']} style={styles.statCardBg}>
-            <Ionicons name="checkmark-circle" size={28} color={colors.green} />
-            <Text style={styles.statNumber}>{stats.finished}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
+          <LinearGradient 
+            colors={['#27AE6025', '#27AE6010']} 
+            style={styles.statCardBg}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.statIconContainer}>
+              <Ionicons name="checkmark-circle" size={36} color={colors.green} />
+            </View>
+            <View style={styles.statContent}>
+              <AppText variant="h1" style={styles.statNumber}>{stats.finished}</AppText>
+              <AppText variant="caption" style={styles.statLabel}>Completed</AppText>
+            </View>
           </LinearGradient>
         </View>
 
         <View style={styles.statCard}>
-          <LinearGradient colors={['#F39C1215', '#F39C1205']} style={styles.statCardBg}>
-            <Ionicons name="time" size={28} color={colors.amber} />
-            <Text style={styles.statNumber}>{stats.estimatedHours}h</Text>
-            <Text style={styles.statLabel}>Watch Time</Text>
+          <LinearGradient 
+            colors={['#F39C1225', '#F39C1210']} 
+            style={styles.statCardBg}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.statIconContainer}>
+              <Ionicons name="time" size={36} color={colors.amber} />
+            </View>
+            <View style={styles.statContent}>
+              <AppText variant="h1" style={styles.statNumber}>{stats.estimatedHours}h</AppText>
+              <AppText variant="caption" style={styles.statLabel}>Watch Time</AppText>
+            </View>
           </LinearGradient>
         </View>
       </View>
@@ -123,9 +160,9 @@ export default function ProfileScreen({ navigation }) {
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <AppText variant="h3" style={styles.sectionTitle}>Recent Activity</AppText>
           <TouchableOpacity onPress={() => navigation.navigate('Watchlist')}>
-            <Text style={styles.seeAllText}>See All</Text>
+            <AppText variant="body" style={styles.seeAllText}>See All</AppText>
           </TouchableOpacity>
         </View>
 
@@ -139,12 +176,12 @@ export default function ProfileScreen({ navigation }) {
               />
             </View>
             <View style={styles.activityContent}>
-              <Text style={styles.activityTitle} numberOfLines={1}>
+              <AppText variant="body" style={styles.activityTitle} numberOfLines={1}>
                 {item.mediaId?.title}
-              </Text>
-              <Text style={styles.activityMeta}>
+              </AppText>
+              <AppText variant="caption" style={styles.activityMeta}>
                 {item.status === 'finished' ? 'Completed' : 'Watching'} • {item.mediaId?.type === 'tv' ? 'TV Show' : 'Movie'}
-              </Text>
+              </AppText>
             </View>
           </View>
         ))}
@@ -154,14 +191,14 @@ export default function ProfileScreen({ navigation }) {
 
   const renderSettings = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Settings</Text>
+      <AppText variant="h3" style={styles.sectionTitle}>Settings</AppText>
 
       <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('EditProfile')}>
         <View style={styles.settingLeft}>
           <View style={styles.settingIcon}>
             <Ionicons name="person-outline" size={20} color={colors.purple} />
           </View>
-          <Text style={styles.settingText}>Edit Profile</Text>
+          <AppText variant="body" style={styles.settingText}>Edit Profile</AppText>
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
       </TouchableOpacity>
@@ -171,7 +208,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.settingIcon}>
             <Ionicons name="notifications-outline" size={20} color={colors.cyan} />
           </View>
-          <Text style={styles.settingText}>Notifications</Text>
+          <AppText variant="body" style={styles.settingText}>Notifications</AppText>
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
       </TouchableOpacity>
@@ -181,7 +218,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.settingIcon}>
             <Ionicons name="color-palette-outline" size={20} color={colors.amber} />
           </View>
-          <Text style={styles.settingText}>Appearance</Text>
+          <AppText variant="body" style={styles.settingText}>Appearance</AppText>
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
       </TouchableOpacity>
@@ -191,7 +228,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.settingIcon}>
             <Ionicons name="shield-checkmark-outline" size={20} color={colors.green} />
           </View>
-          <Text style={styles.settingText}>Privacy & Security</Text>
+          <AppText variant="body" style={styles.settingText}>Privacy & Security</AppText>
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
       </TouchableOpacity>
@@ -201,7 +238,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.settingIcon}>
             <Ionicons name="help-circle-outline" size={20} color={colors.blue} />
           </View>
-          <Text style={styles.settingText}>Help & Support</Text>
+          <AppText variant="body" style={styles.settingText}>Help & Support</AppText>
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
       </TouchableOpacity>
@@ -218,7 +255,7 @@ export default function ProfileScreen({ navigation }) {
           end={{ x: 1, y: 0 }}
         >
           <Ionicons name="log-out-outline" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Logout</Text>
+          <AppText variant="h5" style={styles.logoutText}>Logout</AppText>
         </LinearGradient>
       </TouchableOpacity>
     </View>
@@ -255,6 +292,11 @@ const styles = StyleSheet.create({
     height: 124,
     borderRadius: 62,
     padding: 2,
+    shadowColor: colors.purple,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
   profilePhoto: {
     width: 120,
@@ -270,13 +312,13 @@ const styles = StyleSheet.create({
     color: colors.purple,
   },
   displayName: {
-    fontSize: typography.h2,
+    fontSize: typography.h2.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   email: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     color: colors.textSecondary,
     marginBottom: spacing.md,
   },
@@ -290,7 +332,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   memberText: {
-    fontSize: typography.caption,
+    fontSize: typography.caption.fontSize,
     color: colors.purple,
     fontWeight: typography.semibold,
   },
@@ -305,13 +347,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: typography.h3,
+    fontSize: typography.h3.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginBottom: spacing.lg,
   },
   seeAllText: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.purple,
   },
@@ -322,24 +364,42 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '48%',
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   statCardBg: {
-    padding: spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.lg,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: borderRadius.xl,
+    gap: spacing.md,
+  },
+  statIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statContent: {
+    flex: 1,
   },
   statNumber: {
-    fontSize: typography.hero,
+    fontSize: 32,
     fontWeight: typography.black,
     color: colors.textPrimary,
-    marginVertical: spacing.sm,
+    marginBottom: spacing.xs,
   },
   statLabel: {
-    fontSize: typography.caption,
+    fontSize: typography.caption.fontSize,
     color: colors.textSecondary,
     fontWeight: typography.semibold,
   },
@@ -366,13 +426,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activityTitle: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   activityMeta: {
-    fontSize: typography.caption,
+    fontSize: typography.caption.fontSize,
     color: colors.textSecondary,
   },
   settingItem: {
@@ -400,7 +460,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   settingText: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.textPrimary,
   },
@@ -416,8 +476,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   logoutText: {
-    fontSize: typography.h5,
+    fontSize: typography.h5.fontSize,
     fontWeight: typography.bold,
     color: '#fff',
   },
 });
+

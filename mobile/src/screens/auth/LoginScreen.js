@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import AppText from '../../components/common/AppText';
 
 import useAuthStore from '../../store/authStore';
 import { colors, gradients, typography, spacing, borderRadius } from '../../constants/theme';
@@ -49,8 +49,8 @@ export default function LoginScreen({ navigation }) {
           {/* Logo/Title */}
           <View style={styles.header}>
             <Ionicons name="film" size={64} color={colors.purple} />
-            <Text style={styles.title}>CineSense</Text>
-            <Text style={styles.subtitle}>Intelligent movie & TV show tracking</Text>
+            <AppText variant="h1" style={styles.title}>CineSense</AppText>
+            <AppText variant="body" style={styles.subtitle}>Intelligent movie & TV show tracking</AppText>
           </View>
 
           {/* Form */}
@@ -109,18 +109,27 @@ export default function LoginScreen({ navigation }) {
                 {loading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Login</Text>
+                  <AppText variant="h5" style={styles.buttonText}>Login</AppText>
                 )}
               </LinearGradient>
             </TouchableOpacity>
 
             {/* Register Link */}
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
+              <AppText variant="body" style={styles.footerText}>Don't have an account? </AppText>
               <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                <Text style={styles.linkText}>Sign Up</Text>
+                <AppText variant="body" style={styles.linkText}>Sign Up</AppText>
               </TouchableOpacity>
             </View>
+
+            {/* Skip Button */}
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={() => navigation.replace('Main')}
+            >
+              <AppText variant="small" style={styles.skipText}>Continue without account</AppText>
+              <Ionicons name="arrow-forward" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
           </View>
         </View>
       </LinearGradient>
@@ -145,13 +154,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxl,
   },
   title: {
-    fontSize: typography.h1,
+    fontSize: typography.h1.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginTop: spacing.md,
   },
   subtitle: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     color: colors.textSecondary,
     marginTop: spacing.sm,
     textAlign: 'center',
@@ -174,7 +183,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     color: colors.textPrimary,
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
   },
   eyeIcon: {
     padding: spacing.sm,
@@ -193,7 +202,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: typography.h5,
+    fontSize: typography.h5.fontSize,
     fontWeight: typography.semibold,
   },
   footer: {
@@ -203,11 +212,24 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: colors.textSecondary,
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
   },
   linkText: {
     color: colors.purple,
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
   },
+  skipButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    marginTop: spacing.lg,
+  },
+  skipText: {
+    fontSize: typography.small.fontSize,
+    color: colors.textSecondary,
+  },
 });
+

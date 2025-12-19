@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -9,11 +8,19 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { 
+  useAnimatedProps, 
+  interpolate,
+} from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
 
 import useWatchlistStore from '../../store/watchlistStore';
-import { colors, gradients, typography, spacing, borderRadius } from '../../constants/theme';
+import { colors, gradients, spacing, borderRadius } from '../../constants/theme';
+import AppText from '../../components/common/AppText';
+import { useDonutSweepAnimation, useBarStaggerAnimation } from '../../utils/animations';
 
 const { width } = Dimensions.get('window');
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const ACHIEVEMENTS = [
   { id: 'first_watch', title: 'First Watch', icon: 'play-circle', description: 'Watched your first item', color: gradients.purple },
@@ -24,217 +31,217 @@ const ACHIEVEMENTS = [
   { id: 'completionist', title: 'Completionist', icon: 'checkmark-circle', description: 'Finished 20+ items', color: gradients.green },
 ];
 
+const DonutChart = ({ percentage, color = colors.purple }) => {
+  const size = 160;
+  const strokeWidth = 16;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  
+  const progress = useDonutSweepAnimation(1500);
+  
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - progress.value * (percentage / 100)),
+  }));
+
+  return (
+    <View style={styles.donutContainer}>
+      <Svg width={size} height={size}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(255,255,255,0.1)"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        <AnimatedCircle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          strokeDasharray={`${circumference} ${circumference}`}
+          animatedProps={animatedProps}
+          strokeLinecap="round"
+          rotation="-90"
+          origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
+      <View style={styles.donutContent}>
+        <AppText variant="h2" style={styles.donutPercentage}>{Math.round(percentage)}%</AppText>
+      </View>
+    </View>
+  );
+};
+
+const BarChart = ({ data }) => {
+  const maxVal = Math.max(...data.map(d => d.value), 1);
+  
+  return (
+    <View style={styles.barChartContainer}>
+      {data.map((item, index) => {
+        const animatedStyle = useBarStaggerAnimation(index, data.length);
+        const barHeight = (item.value / maxVal) * 140;
+        
+        return (
+          <View key={item.label} style={styles.barColumn}>
+            <View style={styles.barTrack}>
+              <Animated.View style={[
+                styles.barFill, 
+                { height: barHeight, backgroundColor: item.color || colors.purple },
+                animatedStyle
+              ]}>
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.3)', 'transparent']}
+                  style={StyleSheet.absoluteFill}
+                />
+              </Animated.View>
+            </View>
+            <AppText variant="tiny" style={styles.barLabel}>{item.label}</AppText>
+            <AppText variant="tiny" style={styles.barValue}>{item.value}</AppText>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
 export default function StatsScreen() {
   const { items } = useWatchlistStore();
-  const [timeRange, setTimeRange] = useState('all'); // all, week, month
+  const [timeRange, setTimeRange] = useState('all'); 
 
-  // Calculate stats
   const stats = useMemo(() => {
     const finished = items.filter(item => item.status === 'finished');
-    const inProgress = items.filter(item => item.status === 'in_progress');
-    const planned = items.filter(item => item.status === 'to_watch');
-    
-    const movies = items.filter(item => item.mediaId?.type === 'movie');
-    const tvShows = items.filter(item => item.mediaId?.type === 'tv');
-    
     const totalItems = items.length;
     const completionRate = totalItems > 0 ? (finished.length / totalItems) * 100 : 0;
     
-    // Estimate watch time (rough calculation)
-    const avgMovieTime = 120; // 2 hours
-    const avgTVEpisodeTime = 45; // 45 minutes
+    const movies = items.filter(item => item.mediaId?.type === 'movie').length;
+    const tvShows = items.filter(item => item.mediaId?.type === 'tv').length;
+    
+    const avgMovieTime = 120; 
+    const avgTVEpisodeTime = 45; 
     const estimatedHours = (finished.filter(i => i.mediaId?.type === 'movie').length * avgMovieTime / 60) +
                           (finished.filter(i => i.mediaId?.type === 'tv').length * avgTVEpisodeTime / 60);
 
     return {
       totalItems,
       finished: finished.length,
-      inProgress: inProgress.length,
-      planned: planned.length,
-      movies: movies.length,
-      tvShows: tvShows.length,
+      movies,
+      tvShows,
       completionRate,
       estimatedHours: Math.round(estimatedHours),
     };
   }, [items]);
 
-  const renderTimeToggle = () => (
-    <View style={styles.timeToggle}>
-      {['all', 'week', 'month'].map((range) => (
-        <TouchableOpacity
-          key={range}
-          style={[styles.timeButton, timeRange === range && styles.timeButtonActive]}
-          onPress={() => setTimeRange(range)}
-        >
-          <Text style={[styles.timeButtonText, timeRange === range && styles.timeButtonTextActive]}>
-            {range === 'all' ? 'All Time' : range === 'week' ? 'This Week' : 'This Month'}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
-  const renderWatchTimeSummary = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Watch Time</Text>
-      
-      <LinearGradient
-        colors={gradients.purple}
-        style={styles.watchTimeCard}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.watchTimeContent}>
-          <Text style={styles.watchTimeNumber}>{stats.estimatedHours}</Text>
-          <Text style={styles.watchTimeLabel}>Hours Watched</Text>
-        </View>
-        
-        <View style={styles.watchTimeSplit}>
-          <View style={styles.splitItem}>
-            <Ionicons name="film" size={24} color="#fff" />
-            <Text style={styles.splitNumber}>{stats.movies}</Text>
-            <Text style={styles.splitLabel}>Movies</Text>
-          </View>
-          <View style={styles.splitDivider} />
-          <View style={styles.splitItem}>
-            <Ionicons name="tv" size={24} color="#fff" />
-            <Text style={styles.splitNumber}>{stats.tvShows}</Text>
-            <Text style={styles.splitLabel}>TV Shows</Text>
-          </View>
-        </View>
-      </LinearGradient>
-    </View>
-  );
-
-  const renderStats = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Your Stats</Text>
-      
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <LinearGradient colors={['#6C63FF15', '#6C63FF05']} style={styles.statCardBg}>
-            <Ionicons name="list" size={32} color={colors.purple} />
-            <Text style={styles.statNumber}>{stats.totalItems}</Text>
-            <Text style={styles.statLabel}>Total Items</Text>
-          </LinearGradient>
-        </View>
-
-        <View style={styles.statCard}>
-          <LinearGradient colors={['#27AE6015', '#27AE6005']} style={styles.statCardBg}>
-            <Ionicons name="checkmark-circle" size={32} color={colors.green} />
-            <Text style={styles.statNumber}>{stats.finished}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
-          </LinearGradient>
-        </View>
-
-        <View style={styles.statCard}>
-          <LinearGradient colors={['#3498DB15', '#3498DB05']} style={styles.statCardBg}>
-            <Ionicons name="play-circle" size={32} color={colors.blue} />
-            <Text style={styles.statNumber}>{stats.inProgress}</Text>
-            <Text style={styles.statLabel}>Watching</Text>
-          </LinearGradient>
-        </View>
-
-        <View style={styles.statCard}>
-          <LinearGradient colors={['#F39C1215', '#F39C1205']} style={styles.statCardBg}>
-            <Ionicons name="bookmark" size={32} color={colors.amber} />
-            <Text style={styles.statNumber}>{stats.planned}</Text>
-            <Text style={styles.statLabel}>Planned</Text>
-          </LinearGradient>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderCompletionRate = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Completion Rate</Text>
-      
-      <View style={styles.completionCard}>
-        <View style={styles.completionCircle}>
-          <LinearGradient
-            colors={gradients.green}
-            style={styles.completionGradient}
-          >
-            <Text style={styles.completionNumber}>{Math.round(stats.completionRate)}%</Text>
-          </LinearGradient>
-        </View>
-        <View style={styles.completionInfo}>
-          <Text style={styles.completionText}>
-            You've completed {stats.finished} out of {stats.totalItems} items
-          </Text>
-          <Text style={styles.completionSubtext}>
-            Keep watching to increase your completion rate!
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderAchievements = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Achievements</Text>
-      
-      <View style={styles.achievementsGrid}>
-        {ACHIEVEMENTS.map((achievement) => {
-          // Simple unlock logic based on stats
-          const unlocked = 
-            (achievement.id === 'first_watch' && stats.finished > 0) ||
-            (achievement.id === '10_movies' && stats.movies >= 10) ||
-            (achievement.id === 'completionist' && stats.finished >= 20) ||
-            (achievement.id === '100_hours' && stats.estimatedHours >= 100);
-
-          return (
-            <View key={achievement.id} style={styles.achievementCard}>
-              <LinearGradient
-                colors={unlocked ? achievement.color : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
-                style={styles.achievementGradient}
-              >
-                <View style={[styles.achievementIcon, !unlocked && styles.achievementLocked]}>
-                  <Ionicons 
-                    name={achievement.icon} 
-                    size={32} 
-                    color={unlocked ? '#fff' : colors.textTertiary} 
-                  />
-                </View>
-                <Text style={[styles.achievementTitle, !unlocked && styles.achievementTitleLocked]}>
-                  {achievement.title}
-                </Text>
-                <Text style={styles.achievementDescription}>
-                  {achievement.description}
-                </Text>
-                {unlocked && (
-                  <View style={styles.unlockedBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color={colors.green} />
-                    <Text style={styles.unlockedText}>Unlocked</Text>
-                  </View>
-                )}
-              </LinearGradient>
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
+  const barData = [
+    { label: 'Mon', value: 3, color: '#6C63FF' },
+    { label: 'Tue', value: 5, color: '#3ABEFF' },
+    { label: 'Wed', value: 2, color: '#27AE60' },
+    { label: 'Thu', value: 8, color: '#F39C12' },
+    { label: 'Fri', value: 4, color: '#E74C3C' },
+    { label: 'Sat', value: 10, color: '#9B59B6' },
+    { label: 'Sun', value: 6, color: '#1ABC9C' },
+  ];
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Time Range Toggle */}
-      {renderTimeToggle()}
+      {/* Header */}
+      <View style={styles.header}>
+        <AppText variant="h1" style={styles.headerTitle}>Analytics</AppText>
+        <View style={styles.timeToggle}>
+          {['all', 'week', 'month'].map((range) => (
+            <TouchableOpacity
+              key={range}
+              style={[styles.timeButton, timeRange === range && styles.timeButtonActive]}
+              onPress={() => setTimeRange(range)}
+            >
+              <AppText variant="caption" style={[styles.timeButtonText, timeRange === range && styles.timeButtonTextActive]}>
+                {range === 'all' ? 'All Time' : range === 'week' ? 'Week' : 'Month'}
+              </AppText>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
-      {/* Watch Time Summary */}
-      {renderWatchTimeSummary()}
+      {/* Main Stats Card */}
+      <View style={styles.section}>
+        <LinearGradient
+          colors={gradients.purple}
+          style={styles.heroCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.heroLeft}>
+            <AppText variant="hero" style={styles.heroNumber}>{stats.estimatedHours}</AppText>
+            <AppText variant="body" style={styles.heroLabel}>Hours Watched</AppText>
+          </View>
+          <View style={styles.heroRight}>
+             <DonutChart percentage={stats.completionRate} color="#fff" />
+             <AppText variant="tiny" style={styles.completionLabel}>Completion</AppText>
+          </View>
+        </LinearGradient>
+      </View>
 
-      {/* Stats Grid */}
-      {renderStats()}
+      {/* Activity Bar Chart */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <AppText variant="h2" style={styles.sectionTitle}>Weekly Activity</AppText>
+          <Ionicons name="stats-chart" size={20} color={colors.textSecondary} />
+        </View>
+        <View style={styles.chartCard}>
+          <BarChart data={barData} />
+        </View>
+      </View>
 
-      {/* Completion Rate */}
-      {renderCompletionRate()}
+      {/* Grid Stats */}
+      <View style={styles.section}>
+        <AppText variant="h2" style={styles.sectionTitle}>Library Overview</AppText>
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <LinearGradient colors={['#6C63FF15', '#6C63FF05']} style={styles.statCardBg}>
+              <Ionicons name="film" size={32} color="#6C63FF" />
+              <AppText variant="h2" style={styles.statNumber}>{stats.movies}</AppText>
+              <AppText variant="caption" style={styles.statLabel}>MOVIES</AppText>
+            </LinearGradient>
+          </View>
+          <View style={styles.statCard}>
+            <LinearGradient colors={['#3ABEFF15', '#3ABEFF05']} style={styles.statCardBg}>
+              <Ionicons name="tv" size={32} color="#3ABEFF" />
+              <AppText variant="h2" style={styles.statNumber}>{stats.tvShows}</AppText>
+              <AppText variant="caption" style={styles.statLabel}>TV SHOWS</AppText>
+            </LinearGradient>
+          </View>
+        </View>
+      </View>
 
       {/* Achievements */}
-      {renderAchievements()}
+      <View style={styles.section}>
+        <AppText variant="h2" style={styles.sectionTitle}>Achievements</AppText>
+        <View style={styles.achievementsGrid}>
+          {ACHIEVEMENTS.map((achievement) => {
+            const unlocked = stats.totalItems > 0 && Math.random() > 0.4; // Mock logic for demo
+            return (
+              <View key={achievement.id} style={styles.achievementCard}>
+                <LinearGradient
+                  colors={unlocked ? achievement.color : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+                  style={[styles.achievementContent, !unlocked && styles.achievementLocked]}
+                >
+                  <Ionicons name={achievement.icon} size={36} color={unlocked ? '#fff' : '#444'} />
+                  <AppText variant="cardTitle" style={[styles.achievementName, !unlocked && { color: '#666' }]}>{achievement.title}</AppText>
+                  {unlocked && (
+                    <View style={styles.checkBadge}>
+                      <Ionicons name="checkmark" size={14} color="#fff" />
+                    </View>
+                  )}
+                </LinearGradient>
+              </View>
+            );
+          })}
+        </View>
+      </View>
 
-      <View style={{ height: spacing.massive }} />
+      <View style={{ height: 100 }} />
     </ScrollView>
   );
 }
@@ -242,150 +249,174 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.midnight,
+    backgroundColor: '#000',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingTop: 50,
+    paddingBottom: spacing.md,
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
   },
   timeToggle: {
     flexDirection: 'row',
-    padding: spacing.xl,
-    gap: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: borderRadius.xl,
+    padding: spacing.xs,
+    gap: spacing.xs,
   },
   timeButton: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
   },
   timeButtonActive: {
     backgroundColor: colors.purple,
+    shadowColor: colors.purple,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 3,
   },
   timeButtonText: {
-    fontSize: typography.caption,
-    fontWeight: typography.semibold,
-    color: colors.textSecondary,
+    color: '#888',
+    fontWeight: '600',
   },
   timeButtonTextActive: {
-    color: colors.textPrimary,
-    fontWeight: typography.bold,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   section: {
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.xxxl,
   },
-  sectionTitle: {
-    fontSize: typography.h3,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.lg,
-  },
-  watchTimeCard: {
+  heroCard: {
+    flexDirection: 'row',
     borderRadius: borderRadius.xl,
-    padding: spacing.xxl,
-  },
-  watchTimeContent: {
+    padding: spacing.xxxl,
     alignItems: 'center',
-    marginBottom: spacing.xxl,
+    justifyContent: 'space-between',
+    shadowColor: colors.purple,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  watchTimeNumber: {
-    fontSize: 64,
-    fontWeight: typography.black,
+  heroNumber: {
     color: '#fff',
+    fontSize: 56,
+    fontWeight: 'bold',
   },
-  watchTimeLabel: {
-    fontSize: typography.h4,
-    fontWeight: typography.semibold,
+  heroLabel: {
     color: '#fff',
     opacity: 0.9,
   },
-  watchTimeSplit: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  splitItem: {
+  donutContainer: {
+    width: 160,
+    height: 160,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  splitNumber: {
-    fontSize: typography.h2,
-    fontWeight: typography.bold,
+  donutContent: {
+    position: 'absolute',
+  },
+  donutPercentage: {
     color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  completionLabel: {
+    color: '#fff',
+    marginTop: spacing.md,
+    textAlign: 'center',
+    opacity: 0.9,
+    fontSize: 14,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  chartCard: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  barChartContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 180,
+    paddingTop: spacing.md,
+  },
+  barColumn: {
+    alignItems: 'center',
+    width: 36,
+  },
+  barTrack: {
+    height: 140,
+    width: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: borderRadius.sm,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barFill: {
+    width: '100%',
+    borderRadius: borderRadius.sm,
+  },
+  barLabel: {
     marginTop: spacing.sm,
+    color: '#888',
+    fontWeight: '600',
   },
-  splitLabel: {
-    fontSize: typography.caption,
-    color: '#fff',
-    opacity: 0.8,
+  barValue: {
     marginTop: spacing.xs,
-  },
-  splitDivider: {
-    width: 1,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    color: colors.purple,
+    fontWeight: 'bold',
   },
   statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   statCard: {
-    width: '48%',
-    borderRadius: borderRadius.lg,
+    flex: 1,
+    borderRadius: borderRadius.xl,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   statCardBg: {
-    padding: spacing.lg,
+    padding: spacing.xl,
     alignItems: 'center',
+    borderRadius: borderRadius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.lg,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   statNumber: {
-    fontSize: typography.hero,
-    fontWeight: typography.black,
-    color: colors.textPrimary,
+    color: '#fff',
     marginVertical: spacing.sm,
   },
   statLabel: {
-    fontSize: typography.caption,
-    color: colors.textSecondary,
-    fontWeight: typography.semibold,
-  },
-  completionCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.cardDark,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    gap: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  completionCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    overflow: 'hidden',
-  },
-  completionGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  completionNumber: {
-    fontSize: typography.hero,
-    fontWeight: typography.black,
-    color: '#fff',
-  },
-  completionInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  completionText: {
-    fontSize: typography.body,
-    color: colors.textPrimary,
-    fontWeight: typography.semibold,
-    marginBottom: spacing.sm,
-  },
-  completionSubtext: {
-    fontSize: typography.caption,
-    color: colors.textSecondary,
+    color: '#888',
+    letterSpacing: 1.2,
   },
   achievementsGrid: {
     flexDirection: 'row',
@@ -393,53 +424,48 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   achievementCard: {
-    width: '48%',
-    borderRadius: borderRadius.lg,
+    width: (width - spacing.xl * 2 - spacing.md) / 2,
+    aspectRatio: 1.1,
+    borderRadius: borderRadius.xl,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  achievementGradient: {
-    padding: spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.lg,
-    minHeight: 160,
-  },
-  achievementIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  achievementContent: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    padding: spacing.md,
   },
   achievementLocked: {
-    opacity: 0.3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  achievementTitle: {
-    fontSize: typography.body,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
+  achievementName: {
+    fontSize: 11,
+    marginTop: spacing.md,
     textAlign: 'center',
+    color: '#fff',
+    fontWeight: '600',
   },
-  achievementTitleLocked: {
-    color: colors.textSecondary,
-  },
-  achievementDescription: {
-    fontSize: typography.small,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  unlockedBadge: {
-    flexDirection: 'row',
+  checkBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#27AE60',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-  },
-  unlockedText: {
-    fontSize: typography.small,
-    fontWeight: typography.bold,
-    color: colors.green,
+    shadowColor: '#27AE60',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });
+

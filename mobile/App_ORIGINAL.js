@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -7,9 +7,25 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  interpolate,
+  interpolateColor,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { 
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 
 import { colors } from './src/constants/theme';
 import Toast from './src/components/common/Toast';
@@ -38,15 +54,18 @@ const Tab = createBottomTabNavigator();
 // Animated Tab Icon Component
 const AnimatedTabIcon = ({ focused, iconName, size }) => {
   const translateY = useSharedValue(focused ? -2 : 0);
+  const colorProgress = useSharedValue(focused ? 1 : 0);
 
   React.useEffect(() => {
     translateY.value = withSpring(focused ? -2 : 0, { damping: 15 });
+    colorProgress.value = withSpring(focused ? 1 : 0, { damping: 15 });
   }, [focused]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
 
+  // Use the focused prop directly for color since interpolateColor with Ionicons is complex
   const iconColor = focused ? colors.electricPurple : colors.softGrey;
 
   return (
@@ -103,11 +122,28 @@ function TabNavigator() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
         <StatusBar style="light" />
         <Stack.Navigator
+          // ... options ...
           screenOptions={{
             headerStyle: {
               backgroundColor: colors.charcoal,

@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   headerTitle: {
-    fontSize: typography.h3,
+    fontSize: typography.h3.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
   },
@@ -159,13 +159,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   sectionTitle: {
-    fontSize: typography.h4,
+    fontSize: typography.h4.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
   },
   sectionSubtitle: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     color: colors.textSecondary,
     marginBottom: spacing.xl,
     lineHeight: 22,
@@ -201,13 +201,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   themeName: {
-    fontSize: typography.h5,
+    fontSize: typography.h5.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   themeDescription: {
-    fontSize: typography.caption,
+    fontSize: typography.caption.fontSize,
     color: colors.textSecondary,
   },
   selectedBadge: {
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   settingText: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     fontWeight: typography.semibold,
     color: colors.textPrimary,
   },
@@ -266,3 +266,4 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
 });
+

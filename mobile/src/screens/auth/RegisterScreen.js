@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import AppText from '../../components/common/AppText';
 
 import useAuthStore from '../../store/authStore';
 import { colors, gradients, typography, spacing, borderRadius } from '../../constants/theme';
@@ -54,8 +55,8 @@ export default function RegisterScreen({ navigation }) {
           style={styles.gradient}
         >
           <View style={styles.content}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join the CineSense community</Text>
+            <AppText variant="h2" style={styles.title}>Create Account</AppText>
+            <AppText variant="body" style={styles.subtitle}>Join the CineSense community</AppText>
 
             <View style={styles.form}>
               {/* Display Name Input */}
@@ -125,7 +126,7 @@ export default function RegisterScreen({ navigation }) {
                   {loading ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.buttonText}>Create Account</Text>
+                    <AppText variant="h5" style={styles.buttonText}>Create Account</AppText>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
@@ -154,13 +155,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxl,
   },
   title: {
-    fontSize: typography.h2,
+    fontSize: typography.h2.fontSize,
     fontWeight: typography.bold,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
     color: colors.textSecondary,
     marginBottom: spacing.xl,
   },
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     color: colors.textPrimary,
-    fontSize: typography.body,
+    fontSize: typography.body.fontSize,
   },
   eyeIcon: {
     padding: spacing.sm,
@@ -201,7 +202,8 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: typography.h5,
+    fontSize: typography.h5.fontSize,
     fontWeight: typography.semibold,
   },
 });
+
