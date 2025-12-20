@@ -79,6 +79,8 @@ export const gradients = {
   amber: ['#F39C12', '#E67E22'],
   green: ['#27AE60', '#229954'],
   blue: ['#3498DB', '#2980B9'],
+  pink: ['#E91E63', '#C2185B'],
+  teal: ['#1ABC9C', '#16A085'],
   dark: ['rgba(0,0,0,0.8)', 'rgba(0,0,0,0.4)'],
   darkOverlay: ['rgba(0,0,0,0.9)', 'rgba(0,0,0,0.6)'],
 };

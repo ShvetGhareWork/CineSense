@@ -59,7 +59,7 @@ export default function MediaDetailScreen({ route, navigation }) {
   const buttonScale = useSharedValue(1);
   const buttonGlow = useSharedValue(0);
   
-  const { addToWatchlist, items } = useWatchlistStore();
+  const { addToWatchlist, toggleFavorite, isFavorite: checkIsFavorite, items } = useWatchlistStore();
   const watchlistItem = useMemo(
     () => items.find(item => item.tmdbId === mediaId?.toString()),
     [items, mediaId]
@@ -68,6 +68,8 @@ export default function MediaDetailScreen({ route, navigation }) {
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
     fetchMediaDetails();
+    // Check if item is favorited
+    setIsFavorite(checkIsFavorite(mediaId));
     return () => StatusBar.setBarStyle('default');
   }, [mediaId, mediaType]);
 
@@ -131,20 +133,23 @@ export default function MediaDetailScreen({ route, navigation }) {
     await addToWatchlist(mediaId, mediaType, mediaData);
     
     toast.success('Added to your watchlist!');
-
-    // Delay navigation to show animation
-    setTimeout(() => {
-      navigation.goBack();
-    }, 800);
-  }, [mediaId, mediaType, media, addToWatchlist, navigation, buttonScale, buttonGlow]);
+  }, [mediaId, mediaType, media, addToWatchlist, buttonScale, buttonGlow]);
 
   // Favorite Sparkle Animation
   const { sparkleStyle, trigger: triggerSparkle } = useSparkleAnimation();
   const favoriteScale = useSharedValue(1);
 
-  const handleToggleFavorite = useCallback(() => {
+  const handleToggleFavorite = useCallback(async () => {
     const nextState = !isFavorite;
     setIsFavorite(nextState);
+    
+    // Save to store
+    const mediaData = {
+      title: media?.title || media?.name || 'Unknown',
+      posterPath: media?.poster_path || null,
+      voteAverage: media?.vote_average || null,
+    };
+    await toggleFavorite(mediaId, mediaType, mediaData);
     
     if (nextState) {
       triggerSparkle();
@@ -152,11 +157,14 @@ export default function MediaDetailScreen({ route, navigation }) {
         withSpring(1.4, { damping: 10 }),
         withSpring(1, { damping: 12 })
       );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast.success('Added to favorites!');
     } else {
       favoriteScale.value = withSpring(1, { damping: 12 });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      toast.info('Removed from favorites');
     }
-  }, [isFavorite, triggerSparkle, favoriteScale]);
+  }, [isFavorite, triggerSparkle, favoriteScale, toggleFavorite, mediaId, mediaType, media]);
 
   const favoriteHeartStyle = useAnimatedStyle(() => ({
     transform: [{ scale: favoriteScale.value }],

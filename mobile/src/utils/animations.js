@@ -348,7 +348,7 @@ export const useToastAnimation = (onFinished) => {
       duration: 300,
     }, (finished) => {
       'worklet';
-      if (finished && onFinished) {
+      if (finished && onFinished && typeof onFinished === 'function') {
         onFinished();
       }
     });

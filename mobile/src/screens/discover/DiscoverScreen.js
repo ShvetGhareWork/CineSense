@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,12 @@ import {
   Keyboard,
   Modal,
   ScrollView,
+  Dimensions,
+  Image,
 } from 'react-native';
 import Animated, {
   FadeInUp,
+  FadeInDown,
   SlideInDown,
   useSharedValue,
   useAnimatedStyle,
@@ -31,6 +34,9 @@ import MediaCard from '../../components/media/MediaCard';
 import api from '../../api/client';
 import { colors, gradients, typography, spacing, borderRadius } from '../../constants/theme';
 import AppText from '../../components/common/AppText';
+import { useNavigation } from '@react-navigation/native';
+
+const { width } = Dimensions.get('window');
 
 const GENRES = [
   { id: 28, name: 'Action' },
@@ -55,120 +61,165 @@ const SORT_OPTIONS = [
   { id: 'release_date.asc', name: 'Oldest First' },
 ];
 
-// Memoized Header Component to prevent keyboard flickering/unmounting during typing
-const DiscoverHeader = React.memo(({ 
-  localQuery, 
-  setLocalQuery, 
-  searchQuery, 
-  setSearchQuery, 
-  handleSearchTrigger, 
-  selectedGenres, 
-  openFilters, 
-  mediaType, 
-  setMediaType 
-}) => {
-  const [isFocused, setIsFocused] = useState(false);
-  const searchWidth = useSharedValue(0);
-  const searchBgOpacity = useSharedValue(0.8);
+// Hero Featured Section Component
+const HeroSection = ({ media, onPress }) => {
+  if (!media) return null;
 
-  const searchAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(searchWidth.value, [0, 1], [1, 1.02]) }],
-  }));
-
-  const searchBlurStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(searchBgOpacity.value, [0.8, 1], [0.8, 1]),
-  }));
-
-  const handleFocus = () => {
-    setIsFocused(true);
-    searchWidth.value = withSpring(1, { damping: 15 });
-    searchBgOpacity.value = withSpring(1, { damping: 15 });
-  };
-
-  const handleBlur = () => {
-    setIsFocused(false);
-    searchWidth.value = withSpring(0, { damping: 15 });
-    searchBgOpacity.value = withSpring(0.8, { damping: 15 });
-  };
+  const backdropUrl = media.backdrop_path
+    ? `https://image.tmdb.org/t/p/original${media.backdrop_path}`
+    : null;
 
   return (
-    <View style={styles.header}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Animated.View style={searchAnimatedStyle}>
-          <BlurView intensity={80} tint="dark" style={styles.searchBlur}>
-            <Animated.View style={[styles.searchBar, searchBlurStyle]}>
-              <Ionicons name="search" size={20} color={colors.textSecondary} />
-              <TextInput
-                key="search-input-field"
-                style={styles.searchInput}
-                placeholder="Search movies & TV shows..."
-                placeholderTextColor={colors.textSecondary}
-                value={localQuery}
-                onChangeText={setLocalQuery}
-                onSubmitEditing={handleSearchTrigger}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-                returnKeyType="search"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-              {localQuery.length > 0 && (
-                <TouchableOpacity onPress={() => {
-                  setLocalQuery('');
-                  setSearchQuery('');
-                }}>
-                  <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
-            </Animated.View>
-          </BlurView>
-        </Animated.View>
-      </View>
-
-      {/* Filter Chips */}
-      {!searchQuery && (
-        <View style={styles.filterChips}>
-          <TouchableOpacity style={styles.filterButton} onPress={openFilters}>
-            <LinearGradient
-              colors={selectedGenres.length > 0 ? gradients.purple : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
-              style={styles.filterButtonGradient}
-            >
-              <Ionicons name="options" size={18} color="#fff" />
-              <AppText variant="body" style={styles.filterButtonText}>Filters</AppText>
-              {selectedGenres.length > 0 && (
-                <View style={styles.filterBadge}>
-                  <AppText variant="tiny" style={styles.filterBadgeText}>{selectedGenres.length}</AppText>
-                </View>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* Media Type Toggle */}
-          <View style={styles.mediaTypeToggle}>
-            {['all', 'movie', 'tv'].map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.mediaTypeButton,
-                  mediaType === type && styles.mediaTypeButtonActive
-                ]}
-                onPress={() => setMediaType(type)}
-              >
-                <AppText variant="body" style={[
-                  styles.mediaTypeText,
-                  mediaType === type && styles.mediaTypeTextActive
-                ]}>
-                  {type === 'all' ? 'All' : type === 'movie' ? 'Movies' : 'TV Shows'}
+    <Animated.View entering={FadeInDown.duration(600)} style={styles.heroContainer}>
+      <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
+        <View style={styles.heroImageContainer}>
+          {backdropUrl && (
+            <Image
+              source={{ uri: backdropUrl }}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
+          )}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.9)']}
+            locations={[0, 0.5, 1]}
+            style={styles.heroGradient}
+          />
+          <View style={styles.heroContent}>
+            <View style={styles.featuredBadge}>
+              <Ionicons name="star" size={16} color={colors.gold} />
+              <AppText variant="caption" style={styles.featuredText}>FEATURED</AppText>
+            </View>
+            <AppText variant="hero" style={styles.heroTitle} numberOfLines={2}>
+              {media.title || media.name}
+            </AppText>
+            <View style={styles.heroMeta}>
+              <View style={styles.heroRating}>
+                <Ionicons name="star" size={14} color={colors.gold} />
+                <AppText variant="body" style={styles.heroRatingText}>
+                  {media.vote_average?.toFixed(1)}
                 </AppText>
-              </TouchableOpacity>
-            ))}
+              </View>
+              {media.release_date && (
+                <AppText variant="body" style={styles.heroYear}>
+                  {media.release_date.split('-')[0]}
+                </AppText>
+              )}
+            </View>
+            <AppText variant="body" style={styles.heroOverview} numberOfLines={3}>
+              {media.overview}
+            </AppText>
           </View>
         </View>
-      )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+// Horizontal Section Component
+const HorizontalSection = ({ title, icon, iconColor, data, onItemPress, loading }) => {
+  if (loading) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={[styles.sectionIconCircle, { backgroundColor: iconColor + '20' }]}>
+            <Ionicons name={icon} size={20} color={iconColor} />
+          </View>
+          <AppText variant="h3" style={styles.sectionTitle}>{title}</AppText>
+        </View>
+        <ActivityIndicator size="small" color={colors.purple} style={{ marginTop: spacing.lg }} />
+      </View>
+    );
+  }
+
+  if (!data || data.length === 0) return null;
+
+  return (
+    <Animated.View entering={FadeInUp.duration(400)} style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={[styles.sectionIconCircle, { backgroundColor: iconColor + '20' }]}>
+          <Ionicons name={icon} size={20} color={iconColor} />
+        </View>
+        <AppText variant="h3" style={styles.sectionTitle}>{title}</AppText>
+      </View>
+      <FlatList
+        horizontal
+        data={data}
+        renderItem={({ item, index }) => (
+          <View style={styles.horizontalCard}>
+            <MediaCard
+              media={item}
+              showStatus={false}
+              showRating={true}
+              showTitle={true}
+              width={140}
+              height={210}
+              onPress={() => onItemPress(item)}
+            />
+          </View>
+        )}
+        keyExtractor={(item, index) => `${title}-${item.tmdbId || item.id || index}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.horizontalList}
+      />
+    </Animated.View>
+  );
+};
+
+// Search Header Component
+const SearchHeader = ({ 
+  localQuery, 
+  setLocalQuery, 
+  handleSearchTrigger, 
+  openFilters, 
+  selectedGenres 
+}) => {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <View style={styles.searchHeader}>
+      <View style={styles.searchContainer}>
+        <BlurView intensity={80} tint="dark" style={styles.searchBlur}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={20} color={colors.textSecondary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search movies & TV shows..."
+              placeholderTextColor={colors.textSecondary}
+              value={localQuery}
+              onChangeText={setLocalQuery}
+              onSubmitEditing={handleSearchTrigger}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {localQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setLocalQuery('')}>
+                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </BlurView>
+      </View>
+
+      <TouchableOpacity style={styles.filterIconButton} onPress={openFilters}>
+        <LinearGradient
+          colors={selectedGenres.length > 0 ? gradients.purple : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
+          style={styles.filterIconGradient}
+        >
+          <Ionicons name="options" size={20} color="#fff" />
+          {selectedGenres.length > 0 && (
+            <View style={styles.filterBadge}>
+              <AppText variant="tiny" style={styles.filterBadgeText}>{selectedGenres.length}</AppText>
+            </View>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
     </View>
   );
-});
+};
 
 // Animated Genre Chip Component
 const GenreChip = ({ genre, isSelected, onPress }) => {
@@ -206,7 +257,7 @@ const GenreChip = ({ genre, isSelected, onPress }) => {
   );
 };
 
-// Custom Filter Modal Content Component
+// Filter Modal Component
 const FilterModalContent = ({
   isVisible,
   closeFilters,
@@ -290,47 +341,90 @@ const FilterModalContent = ({
   );
 };
 
-
 export default function DiscoverScreen() {
+  const navigation = useNavigation();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [localQuery, setLocalQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  
+  // Content sections
+  const [featuredMedia, setFeaturedMedia] = useState(null);
+  const [trendingMovies, setTrendingMovies] = useState([]);
+  const [trendingTV, setTrendingTV] = useState([]);
+  const [popularMovies, setPopularMovies] = useState([]);
+  const [topRated, setTopRated] = useState([]);
   
   // Filters
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [selectedSort, setSelectedSort] = useState('popularity.desc');
-  const [mediaType, setMediaType] = useState('all'); // all, movie, tv
-  
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  
+
   useEffect(() => {
     loadDiscoverContent();
-  }, [selectedGenres, selectedSort, mediaType]);
+  }, [selectedGenres, selectedSort]); // Reload when filters change
+
+  const loadDiscoverContent = async () => {
+    try {
+      setLoading(true);
+      
+      // Build filter parameters
+      const genreParam = selectedGenres.length > 0 ? `&with_genres=${selectedGenres.join(',')}` : '';
+      const sortParam = selectedSort ? `&sort_by=${selectedSort}` : '';
+      
+      // Fetch multiple sections in parallel
+      const [trendingMoviesRes, trendingTVRes, popularRes, topRatedRes] = await Promise.all([
+        api.get(`/media/trending?mediaType=movie&timeWindow=week&page=1${genreParam}${sortParam}`),
+        api.get(`/media/trending?mediaType=tv&timeWindow=week&page=1${genreParam}${sortParam}`),
+        api.get(`/media/trending?mediaType=movie&timeWindow=day&page=1${genreParam}${sortParam}`),
+        api.get(`/media/trending?mediaType=movie&timeWindow=week&page=1${genreParam}&sort_by=vote_average.desc`),
+      ]);
+
+      const mapResults = (results, type) => results.map(item => ({
+        ...item,
+        tmdbId: item.id?.toString(),
+        type: type || item.media_type,
+        title: item.title || item.name,
+        posterPath: item.poster_path,
+        voteAverage: item.vote_average,
+      }));
+
+      const trendingMoviesData = mapResults(trendingMoviesRes.data.data.results, 'movie');
+      const trendingTVData = mapResults(trendingTVRes.data.data.results, 'tv');
+      const popularData = mapResults(popularRes.data.data.results, 'movie');
+      const topRatedData = mapResults(topRatedRes.data.data.results, 'movie');
+
+      setTrendingMovies(trendingMoviesData);
+      setTrendingTV(trendingTVData);
+      setPopularMovies(popularData);
+      setTopRated(topRatedData);
+      
+      // Set featured media (highest rated from trending)
+      const allTrending = [...trendingMoviesData, ...trendingTVData];
+      const featured = allTrending.sort((a, b) => b.vote_average - a.vote_average)[0];
+      setFeaturedMedia(featured);
+      
+    } catch (error) {
+      console.error('Failed to load discover content:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearchTrigger = useCallback(() => {
     if (localQuery.trim()) {
       setSearchQuery(localQuery);
+      handleSearch(localQuery);
     }
   }, [localQuery]);
 
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      handleSearch();
-    } else {
-      loadDiscoverContent();
-    }
-  }, [searchQuery]);
-
-  const handleSearch = async () => {
+  const handleSearch = async (query) => {
     try {
       setLoading(true);
-      setPage(1);
-      const response = await api.get(`/media/search?query=${encodeURIComponent(searchQuery)}`);
+      const response = await api.get(`/media/search?query=${encodeURIComponent(query)}`);
       
-      const searchResults = response.data.data.results
+      const results = response.data.data.results
         .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
         .map(item => ({
           ...item,
@@ -341,8 +435,7 @@ export default function DiscoverScreen() {
           voteAverage: item.vote_average,
         }));
       
-      setResults(searchResults);
-      setHasMore(searchResults.length >= 20);
+      setSearchResults(results);
     } catch (error) {
       console.error('Search failed:', error);
     } finally {
@@ -350,59 +443,14 @@ export default function DiscoverScreen() {
     }
   };
 
-  const loadDiscoverContent = async (loadMore = false) => {
-    try {
-      setLoading(true);
-      const currentPage = loadMore ? page + 1 : 1;
-      
-      const genreParam = selectedGenres.length > 0 ? `&with_genres=${selectedGenres.join(',')}` : '';
-      const sortParam = selectedSort ? `&sort_by=${selectedSort}` : '';
-      
-      let response;
-      
-      if (mediaType === 'all') {
-        // Fetch both movies and TV shows
-        const [moviesRes, tvRes] = await Promise.all([
-          api.get(`/media/trending?mediaType=movie&timeWindow=week&page=${currentPage}${genreParam}${sortParam}`),
-          api.get(`/media/trending?mediaType=tv&timeWindow=week&page=${currentPage}${genreParam}${sortParam}`)
-        ]);
-        
-        const combinedResults = [
-          ...moviesRes.data.data.results.map(item => ({ ...item, media_type: 'movie' })),
-          ...tvRes.data.data.results.map(item => ({ ...item, media_type: 'tv' }))
-        ].sort((a, b) => b.vote_average - a.vote_average);
-        
-        response = { data: { data: { results: combinedResults } } };
-      } else {
-        response = await api.get(
-          `/media/trending?mediaType=${mediaType}&timeWindow=week&page=${currentPage}${genreParam}${sortParam}`
-        );
-      }
-      
-      const newResults = response.data.data.results.map(item => ({
-        ...item,
-        tmdbId: item.id?.toString(),
-        type: item.media_type || typeParam,
-        title: item.title || item.name,
-        posterPath: item.poster_path,
-        voteAverage: item.vote_average,
-      }));
-      
-      setResults(loadMore ? [...results, ...newResults] : newResults);
-      setPage(currentPage);
-      setHasMore(newResults.length >= 20);
-    } catch (error) {
-      console.error('Failed to load discover content:', error);
-    } finally {
-      setLoading(false);
+  const handleMediaPress = useCallback((media) => {
+    if (media?.tmdbId || media?.id) {
+      navigation.navigate('MediaDetail', {
+        mediaId: (media.tmdbId || media.id)?.toString(),
+        mediaType: media.type || media.media_type || 'movie'
+      });
     }
-  };
-
-  const handleLoadMore = () => {
-    if (!loading && hasMore && !searchQuery) {
-      loadDiscoverContent(true);
-    }
-  };
+  }, [navigation]);
 
   const toggleGenre = (genreId) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -416,7 +464,6 @@ export default function DiscoverScreen() {
   const clearFilters = () => {
     setSelectedGenres([]);
     setSelectedSort('popularity.desc');
-    setMediaType('all');
   };
 
   const openFilters = useCallback(() => {
@@ -428,81 +475,54 @@ export default function DiscoverScreen() {
     setFilterModalVisible(false);
   };
 
-  const renderItem = ({ item, index }) => (
-    <Animated.View 
-      style={[styles.gridItem, index % 2 === 0 ? styles.gridItemLeft : styles.gridItemRight]}
-      entering={FadeInUp.duration(300).delay(index * 40)}
-      layout={Layout.springify().damping(15)}
-    >
-      <MediaCard
-        media={item}
-        showStatus={false}
-        showRating={true}
-        showTitle={false}
-        width={155}
-        height={233}
-      />
-    </Animated.View>
-  );
-
-  const renderFooter = () => {
-    if (!loading) return null;
-    return (
-      <View style={styles.footer}>
-        <ActivityIndicator size="small" color={colors.purple} />
-      </View>
-    );
+  const clearSearch = () => {
+    setLocalQuery('');
+    setSearchQuery('');
+    setSearchResults([]);
   };
 
-  const renderEmpty = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="search" size={80} color={colors.textTertiary} />
-      <AppText variant="h3" style={styles.emptyTitle}>No results found</AppText>
-      <AppText variant="body" style={styles.emptySubtitle}>
-        {searchQuery ? 'Try a different search term' : 'Try adjusting your filters'}
-      </AppText>
-    </View>
-  );
+  // Show search results if searching
+  if (searchQuery && searchResults.length > 0) {
+    return (
+      <View style={styles.container}>
+        <SearchHeader
+          localQuery={localQuery}
+          setLocalQuery={setLocalQuery}
+          handleSearchTrigger={handleSearchTrigger}
+          openFilters={openFilters}
+          selectedGenres={selectedGenres}
+        />
+        
+        <View style={styles.searchResultsHeader}>
+          <AppText variant="h3" style={styles.searchResultsTitle}>
+            Search Results for "{searchQuery}"
+          </AppText>
+          <TouchableOpacity onPress={clearSearch}>
+            <AppText variant="body" style={styles.clearSearchText}>Clear</AppText>
+          </TouchableOpacity>
+        </View>
 
-  return (
-    <View style={styles.container}>
-      <FlatList
-        data={results}
-        renderItem={renderItem}
-        keyExtractor={(item, index) => `discover-${item.tmdbId || index}`}
-        numColumns={2}
-        ListHeaderComponent={
-          <DiscoverHeader 
-            localQuery={localQuery}
-            setLocalQuery={setLocalQuery}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            handleSearchTrigger={handleSearchTrigger}
-            selectedGenres={selectedGenres}
-            openFilters={openFilters}
-            mediaType={mediaType}
-            setMediaType={setMediaType}
-          />
-        }
-        ListFooterComponent={renderFooter}
-        ListEmptyComponent={!loading ? renderEmpty : null}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-      />
+        <FlatList
+          data={searchResults}
+          renderItem={({ item, index }) => (
+            <View style={[styles.gridItem, index % 2 === 0 ? styles.gridItemLeft : styles.gridItemRight]}>
+              <MediaCard
+                media={item}
+                showStatus={false}
+                showRating={true}
+                showTitle={false}
+                width={155}
+                height={233}
+              />
+            </View>
+          )}
+          keyExtractor={(item, index) => `search-${item.tmdbId || index}`}
+          numColumns={2}
+          contentContainerStyle={styles.searchGrid}
+          showsVerticalScrollIndicator={false}
+        />
 
-      {/* Custom Animated Filter Modal */}
-      <Modal
-        visible={filterModalVisible}
-        transparent={true}
-        onRequestClose={closeFilters}
-        statusBarTranslucent
-        animationType="none"
-      >
-        <FilterModalContent 
+        <FilterModalContent
           isVisible={filterModalVisible}
           closeFilters={closeFilters}
           clearFilters={clearFilters}
@@ -511,7 +531,83 @@ export default function DiscoverScreen() {
           selectedSort={selectedSort}
           setSelectedSort={setSelectedSort}
         />
-      </Modal>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <SearchHeader
+        localQuery={localQuery}
+        setLocalQuery={setLocalQuery}
+        handleSearchTrigger={handleSearchTrigger}
+        openFilters={openFilters}
+        selectedGenres={selectedGenres}
+      />
+
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Hero Featured Section */}
+        <HeroSection
+          media={featuredMedia}
+          onPress={() => featuredMedia && handleMediaPress(featuredMedia)}
+        />
+
+        {/* Trending Movies */}
+        <HorizontalSection
+          title="Trending Movies"
+          icon="flame"
+          iconColor="#FF6B6B"
+          data={trendingMovies}
+          onItemPress={handleMediaPress}
+          loading={loading && trendingMovies.length === 0}
+        />
+
+        {/* Trending TV Shows */}
+        <HorizontalSection
+          title="Trending TV Shows"
+          icon="tv"
+          iconColor="#4ECDC4"
+          data={trendingTV}
+          onItemPress={handleMediaPress}
+          loading={loading && trendingTV.length === 0}
+        />
+
+        {/* Popular Now */}
+        <HorizontalSection
+          title="Popular Now"
+          icon="trending-up"
+          iconColor="#FFD93D"
+          data={popularMovies}
+          onItemPress={handleMediaPress}
+          loading={loading && popularMovies.length === 0}
+        />
+
+        {/* Top Rated */}
+        <HorizontalSection
+          title="Top Rated"
+          icon="star"
+          iconColor={colors.gold}
+          data={topRated}
+          onItemPress={handleMediaPress}
+          loading={loading && topRated.length === 0}
+        />
+
+        <View style={{ height: spacing.xxxl }} />
+      </ScrollView>
+
+      <FilterModalContent
+        isVisible={filterModalVisible}
+        closeFilters={closeFilters}
+        clearFilters={clearFilters}
+        selectedGenres={selectedGenres}
+        toggleGenre={toggleGenre}
+        selectedSort={selectedSort}
+        setSelectedSort={setSelectedSort}
+      />
     </View>
   );
 }
@@ -521,13 +617,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.midnight,
   },
-  header: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: spacing.xl,
+  },
+  
+  // Search Header
+  searchHeader: {
+    flexDirection: 'row',
     paddingTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
+    gap: spacing.md,
+    alignItems: 'center',
   },
   searchContainer: {
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
+    flex: 1,
   },
   searchBlur: {
     borderRadius: borderRadius.xl,
@@ -537,7 +644,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
     gap: spacing.md,
   },
   searchInput: {
@@ -545,38 +652,24 @@ const styles = StyleSheet.create({
     fontSize: typography.body.fontSize,
     color: colors.textPrimary,
   },
-  filterChips: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  filterButton: {
-    borderRadius: borderRadius.xl,
+  filterIconButton: {
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    shadowColor: colors.purple,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  filterButtonGradient: {
-    flexDirection: 'row',
+  filterIconGradient: {
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md + 2,
-    gap: spacing.md,
-  },
-  filterButtonText: {
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
   },
   filterBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
     backgroundColor: colors.gold,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -585,35 +678,127 @@ const styles = StyleSheet.create({
     fontWeight: typography.bold,
     color: '#000',
   },
-  mediaTypeToggle: {
-    flex: 1,
+
+  // Hero Section
+  heroContainer: {
+    marginBottom: spacing.xl,
+  },
+  heroImageContainer: {
+    width: width,
+    height: 400,
+    position: 'relative',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '100%',
+  },
+  heroContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.xl,
+  },
+  featuredBadge: {
     flexDirection: 'row',
-    borderWidth: 2,
-    borderColor: colors.purple,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-  },
-  mediaTypeButton: {
-    flex: 1,
-    paddingVertical: spacing.md,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    gap: spacing.xs,
+    marginBottom: spacing.md,
   },
-  mediaTypeButtonActive: {
-    backgroundColor: colors.purple,
+  featuredText: {
+    color: colors.gold,
+    fontWeight: typography.bold,
+    letterSpacing: 1,
   },
-  mediaTypeText: {
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.semibold,
+  heroTitle: {
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  heroMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  heroRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  heroRatingText: {
+    color: colors.textPrimary,
+    fontWeight: typography.bold,
+  },
+  heroYear: {
     color: colors.textSecondary,
   },
-  mediaTypeTextActive: {
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
+  heroOverview: {
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
-  listContent: {
+
+  // Horizontal Sections
+  section: {
+    marginBottom: spacing.xxl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  sectionIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    color: colors.textPrimary,
+    fontWeight: typography.bold,
+  },
+  horizontalList: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  horizontalCard: {
+    marginRight: spacing.md,
+  },
+
+  // Search Results
+  searchResultsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+  },
+  searchResultsTitle: {
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  clearSearchText: {
+    color: colors.purple,
+    fontWeight: typography.semibold,
+  },
+  searchGrid: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
   },
@@ -627,25 +812,8 @@ const styles = StyleSheet.create({
   gridItemRight: {
     paddingLeft: spacing.sm,
   },
-  footer: {
-    paddingVertical: spacing.xl,
-    alignItems: 'center',
-  },
-  emptyState: {
-    paddingVertical: spacing.massive * 2,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: typography.h3.fontSize,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
-    marginTop: spacing.lg,
-  },
-  emptySubtitle: {
-    fontSize: typography.body.fontSize,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-  },
+
+  // Filter Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
@@ -740,4 +908,3 @@ const styles = StyleSheet.create({
     fontWeight: typography.semibold,
   },
 });
-

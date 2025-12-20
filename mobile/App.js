@@ -25,6 +25,7 @@ import WatchlistScreen from './src/screens/watchlist/WatchlistScreen';
 import DiscoverScreen from './src/screens/discover/DiscoverScreen';
 import AIRecommendationsScreen from './src/screens/ai/AIRecommendationsScreen';
 import StatsScreen from './src/screens/stats/StatsScreen';
+import AchievementsScreen from './src/screens/stats/AchievementsScreen';
 import ProfileScreen from './src/screens/profile/ProfileScreen';
 import MediaDetailScreen from './src/screens/detail/MediaDetailScreen';
 import EditProfileScreen from './src/screens/settings/EditProfileScreen';
@@ -172,6 +173,11 @@ export default function App() {
           <Stack.Screen 
             name="Appearance" 
             component={AppearanceScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen 
+            name="Achievements" 
+            component={AchievementsScreen}
             options={{ headerShown: false }}
           />
           <Stack.Screen 

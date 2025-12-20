@@ -131,10 +131,12 @@ const MediaCard = ({
         )}
 
         {/* Rating */}
-        {showRating && rating && (
+        {showRating && (media.voteAverage || media.vote_average || rating) && (
           <View style={styles.ratingContainer}>
             <Ionicons name="star" size={14} color={colors.toWatch} />
-            <AppText variant="metadata" style={styles.ratingText}>{rating.toFixed(1)}</AppText>
+            <AppText variant="metadata" style={styles.ratingText}>
+              {(media.voteAverage || media.vote_average || rating).toFixed(1)}
+            </AppText>
           </View>
         )}
       </View>

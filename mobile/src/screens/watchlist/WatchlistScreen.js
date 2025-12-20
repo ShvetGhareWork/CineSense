@@ -24,13 +24,13 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import useWatchlistStore from '../../store/watchlistStore';
 import { colors, gradients, typography, spacing, borderRadius } from '../../constants/theme';
 
 const TABS = [
   { id: 'all', label: 'All', icon: 'list' },
+  { id: 'favorites', label: 'Favorites', icon: 'heart' }, // NEW: Favorites tab
   { id: 'in_progress', label: 'Watching', icon: 'play-circle' },
   { id: 'to_watch', label: 'Planned', icon: 'bookmark' },
   { id: 'finished', label: 'Completed', icon: 'checkmark-circle' },
@@ -55,7 +55,6 @@ import { getStaggerDelay, useProgressAnimation, useFloatingAnimation } from '../
 import AppText from '../../components/common/AppText';
 
 const WatchlistItem = ({ item, handlePress, handleRemove, handleStatusChange }) => {
-  const translateX = useSharedValue(0);
   const posterUrl = item.mediaId?.posterPath
     ? `https://image.tmdb.org/t/p/w500${item.mediaId.posterPath}`
     : null;
@@ -75,184 +74,130 @@ const WatchlistItem = ({ item, handlePress, handleRemove, handleStatusChange }) 
     }
   }, [progress, item.status]);
 
-  const hasTriggeredHaptic = useSharedValue(false);
-
-  const panGesture = Gesture.Pan()
-    .onUpdate((event) => {
-      // Physics resistance: ease resistance as we pull further
-      const x = event.translationX;
-      if (x > 0) {
-        // Resistance for swiping right (not allowed here, just feedback)
-        translateX.value = x * 0.2;
-      } else {
-        // Swipe left with resistance after threshold
-        if (x < -120) {
-          translateX.value = -120 + (x + 120) * 0.3;
-        } else {
-          translateX.value = x;
-        }
-
-        // Trigger haptic when crossing threshold
-        if (x < -100 && !hasTriggeredHaptic.value) {
-          hasTriggeredHaptic.value = true;
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        } else if (x > -100 && hasTriggeredHaptic.value) {
-          hasTriggeredHaptic.value = false;
-        }
-      }
-    })
-    .onEnd((event) => {
-      hasTriggeredHaptic.value = false;
-      if (event.translationX < -100) {
-        // Trigger delete
-        translateX.value = withTiming(-500, { duration: 200 }, () => {
-          // removeFromWatchlist handles the removal from store
-          // which triggers the layout animation vertical collapse
-        });
-        handleRemove(item);
-      } else {
-        translateX.value = withSpring(0);
-      }
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
-  const bgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [-100, -50], [1, 0], 'clamp'),
-    transform: [{ scale: interpolate(translateX.value, [-100, -50], [1, 0.8], 'clamp') }],
-  }));
-
   return (
     <Animated.View
       layout={Layout.springify().damping(18)}
       exiting={FadeOut.duration(250)}
     >
-      <View style={styles.swipeBackground}>
-        <Animated.View style={[styles.deleteAction, bgStyle]}>
-          <Ionicons name="trash" size={24} color="#fff" />
-        </Animated.View>
-      </View>
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={[styles.cardContainer, animatedStyle]}>
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => handlePress(item)}
-            activeOpacity={1} // Handled by gesture
+      <View style={styles.cardContainer}>
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => handlePress(item)}
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+            style={styles.cardGradient}
           >
-            <LinearGradient
-              colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
-              style={styles.cardGradient}
-            >
-              {/* Poster */}
-              <View style={styles.posterContainer}>
-                {posterUrl ? (
-                  <Image source={{ uri: posterUrl }} style={styles.poster} />
-                ) : (
-                  <View style={[styles.poster, styles.posterPlaceholder]}>
-                    <Ionicons name="film-outline" size={30} color={colors.textTertiary} />
+            {/* Poster */}
+            <View style={styles.posterContainer}>
+              {posterUrl ? (
+                <Image source={{ uri: posterUrl }} style={styles.poster} />
+              ) : (
+                <View style={[styles.poster, styles.posterPlaceholder]}>
+                  <Ionicons name="film-outline" size={30} color={colors.textTertiary} />
+                </View>
+              )}
+            </View>
+
+            {/* Content */}
+            <View style={styles.content}>
+              {/* Title */}
+              <AppText variant="cardTitle" style={styles.title} numberOfLines={2}>
+                {item.mediaId?.title}
+              </AppText>
+
+              {/* Meta Info */}
+              <View style={styles.metaRow}>
+                <View style={styles.metaItem}>
+                  <Ionicons 
+                    name={item.mediaId?.type === 'tv' ? 'tv' : 'film'} 
+                    size={14} 
+                    color={colors.textSecondary} 
+                  />
+                  <AppText variant="metadata" style={styles.metaText}>
+                    {item.mediaId?.type === 'tv' ? 'TV Show' : 'Movie'}
+                  </AppText>
+                </View>
+                {item.mediaId?.year && (
+                  <View style={styles.metaItem}>
+                    <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+                    <AppText variant="metadata" style={styles.metaText}>{item.mediaId.year}</AppText>
                   </View>
                 )}
               </View>
 
-              {/* Content */}
-              <View style={styles.content}>
-                {/* Title */}
-                <AppText variant="cardTitle" style={styles.title} numberOfLines={2}>
-                  {item.mediaId?.title}
-                </AppText>
-
-                {/* Meta Info */}
-                <View style={styles.metaRow}>
-                  <View style={styles.metaItem}>
-                    <Ionicons 
-                      name={item.mediaId?.type === 'tv' ? 'tv' : 'film'} 
-                      size={14} 
-                      color={colors.textSecondary} 
-                    />
-                    <AppText variant="metadata" style={styles.metaText}>
-                      {item.mediaId?.type === 'tv' ? 'TV Show' : 'Movie'}
-                    </AppText>
-                  </View>
-                  {item.mediaId?.year && (
-                    <View style={styles.metaItem}>
-                      <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
-                      <AppText variant="metadata" style={styles.metaText}>{item.mediaId.year}</AppText>
-                    </View>
-                  )}
-                </View>
-
-                {/* Status Badge */}
+              {/* Status Badge - Only show for watchlist items, not favorites */}
+              {item.status && (
                 <View style={[styles.statusBadge, { backgroundColor: statusColor + '20', borderColor: statusColor }]}>
                   <AppText variant="caption" style={[styles.statusText, { color: statusColor }]}>
                     {STATUS_LABELS[item.status]}
                   </AppText>
                 </View>
+              )}
 
-                {/* Progress Bar */}
-                {item.status === 'in_progress' && progress > 0 && (
-                  <View style={styles.progressContainer}>
-                    <View style={styles.progressBar}>
-                      <Animated.View
-                        style={[
-                          styles.progressFill,
-                          { backgroundColor: colors.blue }, // Fallback color
-                          progressStyle,
-                          { width: '100%', transformOrigin: 'left' }
-                        ]}
-                      >
-                        <LinearGradient
-                          colors={gradients.blue}
-                          style={StyleSheet.absoluteFill}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                        />
-                      </Animated.View>
-                    </View>
-                    <AppText variant="metadata" style={styles.progressText}>{Math.round(progress)}%</AppText>
-                  </View>
-                )}
-
-                {/* Rating */}
-                {item.status === 'finished' && item.mediaId?.voteAverage && (
-                  <View style={styles.ratingContainer}>
-                    <Ionicons name="star" size={14} color={colors.gold} />
-                    <AppText variant="metadata" style={styles.ratingText}>{item.mediaId.voteAverage.toFixed(1)}</AppText>
-                  </View>
-                )}
-
-                {/* Quick Actions */}
-                <View style={styles.actions}>
-                  {item.status !== 'finished' && (
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleStatusChange(item, 'finished')}
+              {/* Progress Bar */}
+              {item.status === 'in_progress' && progress > 0 && (
+                <View style={styles.progressContainer}>
+                  <View style={styles.progressBar}>
+                    <Animated.View
+                      style={[
+                        styles.progressFill,
+                        { backgroundColor: colors.blue }, // Fallback color
+                        progressStyle,
+                        { width: '100%', transformOrigin: 'left' }
+                      ]}
                     >
-                      <Ionicons name="checkmark-circle-outline" size={20} color={colors.green} />
-                      <AppText variant="caption" style={styles.actionText}>Mark Watched</AppText>
-                    </TouchableOpacity>
-                  )}
+                      <LinearGradient
+                        colors={gradients.blue}
+                        style={StyleSheet.absoluteFill}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                      />
+                    </Animated.View>
+                  </View>
+                  <AppText variant="metadata" style={styles.progressText}>{Math.round(progress)}%</AppText>
+                </View>
+              )}
+
+              {/* Rating - Show for finished items or favorites */}
+              {(item.status === 'finished' || !item.status) && item.mediaId?.voteAverage && (
+                <View style={styles.ratingContainer}>
+                  <Ionicons name="star" size={14} color={colors.gold} />
+                  <AppText variant="metadata" style={styles.ratingText}>{item.mediaId.voteAverage.toFixed(1)}</AppText>
+                </View>
+              )}
+
+              {/* Quick Actions */}
+              <View style={styles.actions}>
+                {item.status && item.status !== 'finished' && (
                   <TouchableOpacity
                     style={styles.actionButton}
-                    onPress={() => handleRemove(item)}
+                    onPress={() => handleStatusChange(item, 'finished')}
                   >
-                    <Ionicons name="trash-outline" size={20} color={colors.red} />
-                    <AppText variant="caption" style={[styles.actionText, { color: colors.red }]}>Remove</AppText>
+                    <Ionicons name="checkmark-circle-outline" size={20} color={colors.green} />
+                    <AppText variant="caption" style={styles.actionText}>Mark Watched</AppText>
                   </TouchableOpacity>
-                </View>
+                )}
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => handleRemove(item)}
+                >
+                  <Ionicons name="trash-outline" size={20} color={colors.red} />
+                  <AppText variant="caption" style={[styles.actionText, { color: colors.red }]}>Remove</AppText>
+                </TouchableOpacity>
               </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
-      </GestureDetector>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 };
 
 export default function WatchlistScreen() {
   const navigation = useNavigation();
-  const { items, fetchWatchlist, removeFromWatchlist, updateStatus, loading } = useWatchlistStore();
+  const { items, favorites, fetchWatchlist, removeFromWatchlist, removeFavorite, updateStatus, loading } = useWatchlistStore();
   const [activeTab, setActiveTab] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -268,6 +213,8 @@ export default function WatchlistScreen() {
 
   const filteredItems = activeTab === 'all' 
     ? items 
+    : activeTab === 'favorites'
+    ? favorites
     : items.filter(item => item.status === activeTab);
 
   const handlePress = (item) => {
@@ -278,15 +225,16 @@ export default function WatchlistScreen() {
   };
 
   const handleRemove = (item) => {
+    const isFavoriteItem = activeTab === 'favorites';
     Alert.alert(
-      'Remove from Watchlist',
-      `Remove "${item.mediaId?.title}" from your watchlist?`,
+      isFavoriteItem ? 'Remove from Favorites' : 'Remove from Watchlist',
+      `Remove "${item.mediaId?.title}" from your ${isFavoriteItem ? 'favorites' : 'watchlist'}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => removeFromWatchlist(item._id),
+          onPress: () => isFavoriteItem ? removeFavorite(item._id) : removeFromWatchlist(item._id),
         },
       ]
     );
@@ -502,20 +450,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 4,
-  },
-  swipeBackground: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.red,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingRight: spacing.massive,
+    marginBottom: spacing.lg,
     borderRadius: borderRadius.lg,
-    marginVertical: spacing.sm,
-  },
-  deleteAction: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   poster: {
     width: 70,
