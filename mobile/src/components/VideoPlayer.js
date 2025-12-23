@@ -70,7 +70,9 @@ const VideoPlayer = ({ videoKey, onClose, title = 'Trailer' }) => {
               style={styles.webview}
               onLoadStart={() => setLoading(true)}
               onLoadEnd={() => setLoading(false)}
-              onError={() => {
+              onError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.error('WebView error:', nativeEvent);
                 setLoading(false);
                 setError(true);
               }}
@@ -78,6 +80,10 @@ const VideoPlayer = ({ videoKey, onClose, title = 'Trailer' }) => {
               mediaPlaybackRequiresUserAction={false}
               javaScriptEnabled
               domStorageEnabled
+              startInLoadingState
+              scalesPageToFit
+              mixedContentMode="always"
+              androidHardwareAccelerationDisabled={false}
             />
           )}
         </View>

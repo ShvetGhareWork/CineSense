@@ -9,6 +9,7 @@ const useWatchlistStore = create(
       favorites: [], // NEW: Separate favorites list
       loading: false,
       error: null,
+      hasHydrated: false, // Track if data has been loaded from AsyncStorage
 
       // Fetch watchlist (now just loads from local storage)
       fetchWatchlist: async (status = null) => {
@@ -31,6 +32,7 @@ const useWatchlistStore = create(
       // Add to watchlist (local only)
       addToWatchlist: async (tmdbId, type, mediaData = {}) => {
         try {
+          console.log(`📝 Adding to watchlist: ${mediaData.title || tmdbId} (${type})`);
           const newItem = {
             _id: `${type}-${tmdbId}-${Date.now()}`, // Local ID
             tmdbId: tmdbId.toString(),
@@ -51,6 +53,7 @@ const useWatchlistStore = create(
             items: [...state.items, newItem]
           }));
           
+          console.log(`✅ Added to watchlist. Total items: ${get().items.length}`);
           return { success: true, data: newItem };
         } catch (error) {
           const message = 'Failed to add to watchlist';
@@ -128,9 +131,11 @@ const useWatchlistStore = create(
       // Remove from watchlist (local only)
       removeFromWatchlist: async (itemId) => {
         try {
+          console.log(`🗑️ Removing from watchlist: ${itemId}`);
           set(state => ({
             items: state.items.filter(item => item._id !== itemId)
           }));
+          console.log(`✅ Removed from watchlist. Total items: ${get().items.length}`);
           return { success: true };
         } catch (error) {
           set({ error: error.message });
@@ -201,7 +206,19 @@ const useWatchlistStore = create(
     {
       name: 'watchlist-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ items: state.items, favorites: state.favorites }) // Persist favorites too
+      partialize: (state) => ({ items: state.items, favorites: state.favorites }), // Persist favorites too
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error('❌ Watchlist rehydration failed:', error);
+        } else {
+          const itemCount = state?.items?.length || 0;
+          const favCount = state?.favorites?.length || 0;
+          console.log(`✅ Watchlist rehydrated: ${itemCount} items, ${favCount} favorites`);
+          if (state) {
+            state.hasHydrated = true;
+          }
+        }
+      }
     }
   )
 );
