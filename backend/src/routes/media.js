@@ -52,6 +52,20 @@ router.get('/trending', async (req, res, next) => {
   }
 });
 
+// ========================================
+// PERSON ENDPOINTS (MUST BE BEFORE :type/:id)
+// ========================================
+
+const mediaController = require('../controllers/mediaController');
+
+// Person endpoints
+router.get('/person/:id', mediaController.getPersonDetails);
+router.get('/person/:id/credits', mediaController.getPersonCredits);
+
+// ========================================
+// PARAMETERIZED ROUTES (:type/:id)
+// ========================================
+
 // Get media details
 router.get('/:type/:id', async (req, res, next) => {
   try {
@@ -130,5 +144,24 @@ router.get('/:type/:id/recommendations', async (req, res, next) => {
     next(error);
   }
 });
+
+// ========================================
+// ADDITIONAL MEDIA ENDPOINTS
+// ========================================
+
+// Video endpoints
+router.get('/:type/:id/videos', mediaController.getVideos);
+
+// Review endpoints
+router.get('/:type/:id/reviews', mediaController.getReviews);
+
+// Similar content endpoints
+router.get('/:type/:id/similar', mediaController.getSimilar);
+
+// Combined recommendations + similar (deduplicated)
+router.get('/:type/:id/combined', mediaController.getCombinedRecommendations);
+
+// Enhanced watch providers (region-aware)
+router.get('/:type/:id/providers', mediaController.getWatchProviders);
 
 module.exports = router;

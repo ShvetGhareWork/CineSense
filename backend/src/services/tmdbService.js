@@ -156,6 +156,187 @@ class TMDbService {
     if (!path) return null;
     return `${this.imageBaseURL}/${size}${path}`;
   }
+
+  // ========================================
+  // PERSON ENDPOINTS
+  // ========================================
+
+  async getPerson(personId) {
+    const cacheKey = `person:${personId}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const response = await axios.get(`${this.baseURL}/person/${personId}`, {
+      params: { api_key: this.apiKey }
+    });
+
+    this.cache.set(cacheKey, response.data);
+    return response.data;
+  }
+
+  async getPersonCredits(personId) {
+    const cacheKey = `person_credits:${personId}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const response = await axios.get(
+      `${this.baseURL}/person/${personId}/combined_credits`,
+      {
+        params: { api_key: this.apiKey }
+      }
+    );
+
+    this.cache.set(cacheKey, response.data);
+    return response.data;
+  }
+
+  // ========================================
+  // VIDEO ENDPOINTS
+  // ========================================
+
+  async getVideos(mediaType, tmdbId) {
+    const cacheKey = `videos:${mediaType}:${tmdbId}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const endpoint = mediaType === 'movie' ? 'movie' : 'tv';
+    const response = await axios.get(`${this.baseURL}/${endpoint}/${tmdbId}/videos`, {
+      params: { api_key: this.apiKey }
+    });
+
+    // Prioritize official YouTube trailers
+    const videos = response.data.results || [];
+    const sortedVideos = videos.sort((a, b) => {
+      // Official trailers first
+      if (a.official && !b.official) return -1;
+      if (!a.official && b.official) return 1;
+      
+      // YouTube first
+      if (a.site === 'YouTube' && b.site !== 'YouTube') return -1;
+      if (a.site !== 'YouTube' && b.site === 'YouTube') return 1;
+      
+      // Trailers before other types
+      if (a.type === 'Trailer' && b.type !== 'Trailer') return -1;
+      if (a.type !== 'Trailer' && b.type === 'Trailer') return 1;
+      
+      return 0;
+    });
+
+    const result = { ...response.data, results: sortedVideos };
+    this.cache.set(cacheKey, result);
+    return result;
+  }
+
+  // ========================================
+  // REVIEW ENDPOINTS
+  // ========================================
+
+  async getReviews(mediaType, tmdbId, page = 1) {
+    const cacheKey = `reviews:${mediaType}:${tmdbId}:${page}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const endpoint = mediaType === 'movie' ? 'movie' : 'tv';
+    const response = await axios.get(`${this.baseURL}/${endpoint}/${tmdbId}/reviews`, {
+      params: {
+        api_key: this.apiKey,
+        page
+      }
+    });
+
+    this.cache.set(cacheKey, response.data);
+    return response.data;
+  }
+
+  // ========================================
+  // ENHANCED EXISTING METHODS WITH CACHING
+  // ========================================
+
+  // Enhanced getRecommendations with caching (already existed but without cache)
+  async getRecommendationsEnhanced(mediaType, tmdbId, page = 1) {
+    const cacheKey = `recommendations:${mediaType}:${tmdbId}:${page}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const endpoint = mediaType === 'movie' ? 'movie' : 'tv';
+    const response = await axios.get(
+      `${this.baseURL}/${endpoint}/${tmdbId}/recommendations`,
+      {
+        params: { api_key: this.apiKey, page }
+      }
+    );
+
+    this.cache.set(cacheKey, response.data);
+    return response.data;
+  }
+
+  // Enhanced getSimilar with caching (already existed but without cache)
+  async getSimilarEnhanced(mediaType, tmdbId, page = 1) {
+    const cacheKey = `similar:${mediaType}:${tmdbId}:${page}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const endpoint = mediaType === 'movie' ? 'movie' : 'tv';
+    const response = await axios.get(
+      `${this.baseURL}/${endpoint}/${tmdbId}/similar`,
+      {
+        params: { api_key: this.apiKey, page }
+      }
+    );
+
+    this.cache.set(cacheKey, response.data);
+    return response.data;
+  }
+
+  // Enhanced getWatchProviders with caching (already existed but without cache)
+  async getWatchProvidersEnhanced(mediaType, tmdbId, region = 'IN') {
+    const cacheKey = `providers:${mediaType}:${tmdbId}:${region}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const endpoint = mediaType === 'movie' ? 'movie' : 'tv';
+    const response = await axios.get(
+      `${this.baseURL}/${endpoint}/${tmdbId}/watch/providers`,
+      {
+        params: { api_key: this.apiKey }
+      }
+    );
+
+    // Filter by region
+    const regionData = response.data.results?.[region] || null;
+    this.cache.set(cacheKey, regionData);
+    return regionData;
+  }
+
+  // ========================================
+  // UTILITY METHODS
+  // ========================================
+
+  // Deduplicate results based on tmdbId
+  deduplicateResults(recommendations, similar, watchlistIds = []) {
+    const seen = new Set(watchlistIds);
+    const combined = [];
+
+    // Add recommendations first
+    for (const item of recommendations) {
+      const id = item.id || item.tmdbId;
+      if (!seen.has(id)) {
+        seen.add(id);
+        combined.push({ ...item, source: 'recommendation' });
+      }
+    }
+
+    // Add similar items
+    for (const item of similar) {
+      const id = item.id || item.tmdbId;
+      if (!seen.has(id)) {
+        seen.add(id);
+        combined.push({ ...item, source: 'similar' });
+      }
+    }
+
+    return combined;
+  }
 }
 
 module.exports = new TMDbService();

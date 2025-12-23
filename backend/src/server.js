@@ -131,9 +131,10 @@ app.use(errorHandler);
 // SERVER START
 // ============================================
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 Accessible at: http://localhost:${PORT} and http://10.0.2.2:${PORT} (Android Emulator)`);
 });
 
 // Graceful shutdown

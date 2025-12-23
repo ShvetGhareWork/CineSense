@@ -27,10 +27,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 
 import useWatchlistStore from '../../store/watchlistStore';
+import usePreferencesStore from '../../store/preferencesStore';
 import api from '../../api/client';
 import { colors, typography, spacing, borderRadius } from '../../constants/theme';
 import AppText from '../../components/common/AppText';
 import ProgressiveImage from '../../components/common/ProgressiveImage';
+import VideoPlayer from '../../components/VideoPlayer';
+import ReviewCard from '../../components/ReviewCard';
+import WatchProvidersList from '../../components/WatchProvidersList';
 import { useStarShimmerAnimation, useSparkleAnimation } from '../../utils/animations';
 import { toast } from '../../utils/toast';
 
@@ -47,6 +51,18 @@ export default function MediaDetailScreen({ route, navigation }) {
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
+  
+  // New state for advanced features
+  const [videos, setVideos] = useState([]);
+  const [selectedVideo, setSelectedVideo] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [hasMoreReviews, setHasMoreReviews] = useState(true);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [recommendations, setRecommendations] = useState([]);
+  const [similar, setSimilar] = useState([]);
+  
+  const { region } = usePreferencesStore();
   
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({
@@ -76,15 +92,24 @@ export default function MediaDetailScreen({ route, navigation }) {
   const fetchMediaDetails = async () => {
     try {
       setLoading(true);
-      const [detailsRes, creditsRes, providersRes] = await Promise.all([
+      const [detailsRes, creditsRes, providersRes, videosRes, reviewsRes, recommendationsRes, similarRes] = await Promise.all([
         api.get(`/media/${mediaType}/${mediaId}`),
         api.get(`/media/${mediaType}/${mediaId}/credits`).catch(() => ({ data: { data: null } })),
-        api.get(`/discover/where-to-watch/${mediaType}/${mediaId}`).catch(() => ({ data: { data: null } }))
+        api.get(`/media/${mediaType}/${mediaId}/providers?region=${region}`).catch(() => ({ data: { data: null } })),
+        api.get(`/media/${mediaType}/${mediaId}/videos`).catch(() => ({ data: { data: { results: [] } } })),
+        api.get(`/media/${mediaType}/${mediaId}/reviews?page=1`).catch(() => ({ data: { data: { results: [] } } })),
+        api.get(`/media/${mediaType}/${mediaId}/recommendations?page=1`).catch(() => ({ data: { data: { results: [] } } })),
+        api.get(`/media/${mediaType}/${mediaId}/similar?page=1`).catch(() => ({ data: { data: { results: [] } } }))
       ]);
 
       setMedia(detailsRes.data.data);
       setCredits(creditsRes.data.data);
       setWatchProviders(providersRes.data.data);
+      setVideos(videosRes.data.data?.results || []);
+      setReviews(reviewsRes.data.data?.results || []);
+      setHasMoreReviews(reviewsRes.data.data?.page < reviewsRes.data.data?.total_pages);
+      setRecommendations(recommendationsRes.data.data?.results || []);
+      setSimilar(similarRes.data.data?.results || []);
       
       // Fetch episodes for TV shows
       if (mediaType === 'tv' && detailsRes.data.data) {
@@ -110,6 +135,30 @@ export default function MediaDetailScreen({ route, navigation }) {
       setLoadingEpisodes(false);
     }
   };
+
+  const loadMoreReviews = async () => {
+    if (!hasMoreReviews || loadingReviews) return;
+
+    try {
+      setLoadingReviews(true);
+      const nextPage = reviewsPage + 1;
+      const response = await api.get(`/media/${mediaType}/${mediaId}/reviews?page=${nextPage}`);
+      
+      if (response.data.success) {
+        setReviews([...reviews, ...(response.data.data.results || [])]);
+        setReviewsPage(nextPage);
+        setHasMoreReviews(response.data.data.page < response.data.data.total_pages);
+      }
+    } catch (error) {
+      console.error('Failed to load more reviews:', error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  const handlePersonPress = useCallback((personId) => {
+    navigation.navigate('PersonProfile', { personId });
+  }, [navigation]);
 
   const handleAddToWatchlist = useCallback(async (status) => {
     // Trigger success animation
@@ -446,6 +495,59 @@ export default function MediaDetailScreen({ route, navigation }) {
             </View>
           )}
 
+          {/* 🎬 VIDEOS / TRAILERS */}
+          {videos && videos.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionIconCircle}>
+                  <Ionicons name="play-circle" size={22} color="#e50914" />
+                </View>
+                <AppText variant="h2" style={styles.sectionTitle}>Trailers & Videos</AppText>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.trailerButton}
+                onPress={() => setSelectedVideo(videos[0])}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={['#e50914', '#b20710']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.trailerButtonGradient}
+                >
+                  <Ionicons name="play" size={28} color="#fff" />
+                  <AppText variant="cardTitle" style={styles.trailerButtonText}>
+                    Watch Trailer
+                  </AppText>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {videos.length > 1 && (
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.videosList}
+                >
+                  {videos.slice(1, 5).map((video, index) => (
+                    <TouchableOpacity
+                      key={video.id}
+                      style={styles.videoCard}
+                      onPress={() => setSelectedVideo(video)}
+                    >
+                      <View style={styles.videoThumbnail}>
+                        <Ionicons name="play-circle" size={40} color="rgba(255,255,255,0.9)" />
+                      </View>
+                      <AppText variant="caption" style={styles.videoTitle} numberOfLines={2}>
+                        {video.name}
+                      </AppText>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          )}
+
           {/* 📽️ INFO GRID */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -506,30 +608,35 @@ export default function MediaDetailScreen({ route, navigation }) {
                 contentContainerStyle={styles.castScrollContent}
               >
                 {credits.cast.slice(0, 15).map((person, index) => (
-                  <Animated.View 
-                    key={person.id} 
-                    style={styles.castCard}
-                    entering={ZoomIn.duration(400).delay(index * 60).springify().damping(12)}
+                  <TouchableOpacity
+                    key={person.id}
+                    onPress={() => handlePersonPress(person.id)}
+                    activeOpacity={0.8}
                   >
-                    <View style={styles.castImageWrapper}>
-                      {person.profile_path ? (
-                        <Image
-                          source={{ uri: `https://image.tmdb.org/t/p/w185${person.profile_path}` }}
-                          style={styles.castImage}
+                    <Animated.View 
+                      style={styles.castCard}
+                      entering={ZoomIn.duration(400).delay(index * 60).springify().damping(12)}
+                    >
+                      <View style={styles.castImageWrapper}>
+                        {person.profile_path ? (
+                          <Image
+                            source={{ uri: `https://image.tmdb.org/t/p/w185${person.profile_path}` }}
+                            style={styles.castImage}
+                          />
+                        ) : (
+                          <View style={[styles.castImage, styles.castPlaceholder]}>
+                            <Ionicons name="person" size={50} color="#444" />
+                          </View>
+                        )}
+                        <LinearGradient
+                          colors={['transparent', 'rgba(0,0,0,0.7)']}
+                          style={styles.castGradient}
                         />
-                      ) : (
-                        <View style={[styles.castImage, styles.castPlaceholder]}>
-                          <Ionicons name="person" size={50} color="#444" />
-                        </View>
-                      )}
-                      <LinearGradient
-                        colors={['transparent', 'rgba(0,0,0,0.7)']}
-                        style={styles.castGradient}
-                      />
-                    </View>
-                    <AppText variant="cardTitle" style={styles.castName} numberOfLines={1}>{person.name}</AppText>
-                    <AppText variant="metadata" style={styles.castCharacter} numberOfLines={1}>{person.character}</AppText>
-                  </Animated.View>
+                      </View>
+                      <AppText variant="cardTitle" style={styles.castName} numberOfLines={1}>{person.name}</AppText>
+                      <AppText variant="metadata" style={styles.castCharacter} numberOfLines={1}>{person.character}</AppText>
+                    </Animated.View>
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
@@ -589,38 +696,147 @@ export default function MediaDetailScreen({ route, navigation }) {
             </View>
           )}
 
-          {/* 🎬 PROVIDERS */}
-          {watchProviders?.results?.US && (
+          {/* 📝 REVIEWS */}
+          {reviews && reviews.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionIconCircle}>
-                  <Ionicons name="play-circle" size={22} color="#6C63FF" />
+                  <Ionicons name="chatbubbles" size={22} color="#F39C12" />
                 </View>
-                <AppText variant="h2" style={styles.sectionTitle}>Where to Watch</AppText>
+                <AppText variant="h2" style={styles.sectionTitle}>Reviews</AppText>
               </View>
-              
-              {watchProviders.results.US.flatrate && (
-                <View style={styles.providerSection}>
-                  <AppText variant="caption" style={styles.providerType}>STREAMING ON</AppText>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {watchProviders.results.US.flatrate.map((provider) => (
-                      <View key={provider.provider_id} style={styles.providerCard}>
-                        <Image
-                          source={{ uri: `https://image.tmdb.org/t/p/w92${provider.logo_path}` }}
-                          style={styles.providerLogo}
-                        />
-                        <AppText variant="metadata" style={styles.providerName} numberOfLines={1}>{provider.provider_name}</AppText>
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
+
+              {reviews.map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))}
+
+              {hasMoreReviews && (
+                <TouchableOpacity
+                  style={styles.loadMoreButton}
+                  onPress={loadMoreReviews}
+                  disabled={loadingReviews}
+                >
+                  {loadingReviews ? (
+                    <ActivityIndicator color="#e50914" />
+                  ) : (
+                    <AppText variant="cardTitle" style={styles.loadMoreText}>
+                      Load More Reviews
+                    </AppText>
+                  )}
+                </TouchableOpacity>
               )}
+            </View>
+          )}
+
+          {/* 🎬 WATCH PROVIDERS */}
+          <WatchProvidersList providers={watchProviders} region={region} />
+
+          {/* 💡 RECOMMENDATIONS */}
+          {recommendations && recommendations.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionIconCircle}>
+                  <Ionicons name="bulb" size={22} color="#FFD700" />
+                </View>
+                <AppText variant="h2" style={styles.sectionTitle}>Recommended for You</AppText>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.recommendationsScroll}
+              >
+                {recommendations.slice(0, 10).map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.recommendationCard}
+                    onPress={() => {
+                      navigation.push('MediaDetail', {
+                        mediaId: item.id,
+                        mediaType: item.media_type || mediaType,
+                      });
+                    }}
+                  >
+                    <Image
+                      source={{
+                        uri: `https://image.tmdb.org/t/p/w342${item.poster_path}`,
+                      }}
+                      style={styles.recommendationPoster}
+                    />
+                    <AppText variant="caption" style={styles.recommendationTitle} numberOfLines={2}>
+                      {item.title || item.name}
+                    </AppText>
+                    <View style={styles.recommendationRating}>
+                      <Ionicons name="star" size={12} color="#FFD700" />
+                      <AppText variant="metadata" style={styles.recommendationRatingText}>
+                        {item.vote_average?.toFixed(1)}
+                      </AppText>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* 🔄 SIMILAR CONTENT */}
+          {similar && similar.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionIconCircle}>
+                  <Ionicons name="copy" size={22} color="#3ABEFF" />
+                </View>
+                <AppText variant="h2" style={styles.sectionTitle}>Similar {mediaType === 'tv' ? 'Shows' : 'Movies'}</AppText>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.recommendationsScroll}
+              >
+                {similar.slice(0, 10).map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.recommendationCard}
+                    onPress={() => {
+                      navigation.push('MediaDetail', {
+                        mediaId: item.id,
+                        mediaType: item.media_type || mediaType,
+                      });
+                    }}
+                  >
+                    <Image
+                      source={{
+                        uri: `https://image.tmdb.org/t/p/w342${item.poster_path}`,
+                      }}
+                      style={styles.recommendationPoster}
+                    />
+                    <AppText variant="caption" style={styles.recommendationTitle} numberOfLines={2}>
+                      {item.title || item.name}
+                    </AppText>
+                    <View style={styles.recommendationRating}>
+                      <Ionicons name="star" size={12} color="#FFD700" />
+                      <AppText variant="metadata" style={styles.recommendationRatingText}>
+                        {item.vote_average?.toFixed(1)}
+                      </AppText>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           )}
           
           <View style={{ height: 60 }} />
         </View>
       </Animated.ScrollView>
+
+      {/* Video Player Modal */}
+      {selectedVideo && (
+        <VideoPlayer
+          videoKey={selectedVideo.key}
+          title={selectedVideo.name}
+          onClose={() => setSelectedVideo(null)}
+        />
+      )}
     </View>
   );
 }
@@ -1029,6 +1245,84 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 10,
     textAlign: 'center',
+  },
+  // Trailer/Video styles
+  trailerButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  trailerButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 12,
+  },
+  trailerButtonText: {
+    color: '#fff',
+  },
+  videosList: {
+    marginTop: 8,
+  },
+  videoCard: {
+    width: 140,
+    marginRight: 12,
+  },
+  videoThumbnail: {
+    width: 140,
+    height: 80,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  videoTitle: {
+    color: '#ccc',
+    fontSize: 12,
+  },
+  // Reviews styles
+  loadMoreButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(229,9,20,0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e50914',
+    alignItems: 'center',
+  },
+  loadMoreText: {
+    color: '#e50914',
+  },
+  // Recommendations/Similar styles
+  recommendationsScroll: {
+    paddingRight: 20,
+  },
+  recommendationCard: {
+    width: 120,
+    marginRight: 12,
+  },
+  recommendationPoster: {
+    width: 120,
+    height: 180,
+    borderRadius: 8,
+    backgroundColor: '#1a1a1a',
+    marginBottom: 8,
+  },
+  recommendationTitle: {
+    color: '#fff',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  recommendationRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  recommendationRatingText: {
+    color: '#FFD700',
+    fontSize: 11,
   },
 });
 

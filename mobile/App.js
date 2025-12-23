@@ -28,6 +28,7 @@ import StatsScreen from './src/screens/stats/StatsScreen';
 import AchievementsScreen from './src/screens/stats/AchievementsScreen';
 import ProfileScreen from './src/screens/profile/ProfileScreen';
 import MediaDetailScreen from './src/screens/detail/MediaDetailScreen';
+import PersonProfileScreen from './src/screens/person/PersonProfileScreen';
 import EditProfileScreen from './src/screens/settings/EditProfileScreen';
 import NotificationsScreen from './src/screens/settings/NotificationsScreen';
 import AppearanceScreen from './src/screens/settings/AppearanceScreen';
@@ -158,6 +159,11 @@ export default function App() {
           <Stack.Screen 
             name="MediaDetail" 
             component={MediaDetailScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen 
+            name="PersonProfile" 
+            component={PersonProfileScreen}
             options={{ headerShown: false }}
           />
           <Stack.Screen 

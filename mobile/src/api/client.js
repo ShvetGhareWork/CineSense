@@ -6,18 +6,13 @@ import apiCache, { CACHE_TTL } from '../utils/apiCache';
 // ✅ Environment-based API URL configuration
 // __DEV__ is automatically set by React Native (true in debug, false in release)
 // 
-// 📱 IMPORTANT: Update the IP address based on your setup:
-// - Android Emulator (Android Studio): use '10.0.2.2:5000'
-// - Physical Device / Expo Go: use your computer's local IP (run 'ipconfig' to find it)
-//   Example: '192.168.1.100:5000' (replace with YOUR computer's IP)
-// - iOS Simulator: use 'localhost:5000'
+// 📱 Using your computer's local IP address for Android Emulator
+// This works better than 10.0.2.2 in some network configurations
 // 
-// 🔥 TEMPORARY: Using production API due to local network/firewall issues
-// To use local backend: Fix Windows Firewall and change back to local IP
-const API_URL = 'https://cinesense-xln2.onrender.com/api';  // Using production API temporarily
-// const API_URL = __DEV__ 
-//   ? 'http://192.168.0.102:5000/api'  // Development: local backend (UPDATE THIS IP!)
-//   : 'https://cinesense-xln2.onrender.com/api';  // Production: deployed backend
+// 🔥 Using local backend with all new features!
+const API_URL = __DEV__ 
+  ? 'http://192.168.0.101:5000/api'  // Development: local backend (your computer's IP)
+  : 'https://cinesense-xln2.onrender.com/api';  // Production: deployed backend
 
 logger.info(`API Client initialized with URL: ${API_URL} (${__DEV__ ? 'DEVELOPMENT' : 'PRODUCTION'} mode)`);
 
